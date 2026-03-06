@@ -1,0 +1,46 @@
+services:
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: machine-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - machine-net
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: machine-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+    networks:
+      - machine-net
+    restart: unless-stopped
+
+  mcp:
+    build:
+      context: ./mcp
+      dockerfile: Dockerfile
+    container_name: machine-mcp
+    ports:
+      - "8001:8001"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - machine-net
+    restart: unless-stopped
+
+networks:
+  machine-net:
+    driver: bridge
