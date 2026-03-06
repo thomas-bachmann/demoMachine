@@ -7,8 +7,6 @@ services:
     container_name: machine-frontend
     ports:
       - "3000:80"
-    depends_on:
-      - backend
     networks:
       - machine-net
     restart: unless-stopped
