@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const isOn = ref(false)
 const hasWarning = ref(false)
@@ -69,8 +69,16 @@ async function simulateError() {
   loading.value = false
 }
 
+let pollTimer = null
+const POLL_MS = 1000
+
 onMounted(() => {
   fetchState()
+  pollTimer = setInterval(fetchState, POLL_MS)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 
