@@ -6,7 +6,7 @@ services:
       dockerfile: Dockerfile
     container_name: machine-frontend
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     networks:
       - machine-net
     restart: unless-stopped
@@ -17,7 +17,7 @@ services:
       dockerfile: Dockerfile
     container_name: machine-backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - ENV=development
     networks:
@@ -30,7 +30,7 @@ services:
       dockerfile: Dockerfile
     container_name: machine-mcp
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     environment:
       - BACKEND_URL=http://backend:8000
     depends_on:
