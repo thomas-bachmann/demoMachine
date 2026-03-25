@@ -47,7 +47,7 @@ services:
     environment:
       - N8N_HOST=${SERVER_IP}
       - N8N_PORT=5678
-      - N8N_PATH=/n8n/
+      - N8N_PATH=/n8n
       - N8N_EDITOR_BASE_URL=http://${SERVER_IP}/n8n/
       - WEBHOOK_URL=http://${SERVER_IP}/n8n/
       - N8N_PROTOCOL=http
