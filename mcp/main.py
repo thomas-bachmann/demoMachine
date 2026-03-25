@@ -22,6 +22,12 @@ async def _api_post(path: str) -> dict:
         r = await client.post(f"{BACKEND_URL}{path}")
         r.raise_for_status()
         return r.json()
+    
+async def _api_post_json(path: str, payload: dict) -> dict:
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.post(f"{BACKEND_URL}{path}", json=payload)
+        r.raise_for_status()
+        return r.json()
 
 
 @server.list_tools()
@@ -52,6 +58,15 @@ async def list_tools():
             description="Toggles the error state. Only works if the machine is on.",
             inputSchema={"type": "object", "properties": {}}
         ),
+        Tool(
+            name="set_speed_target",
+            description="Sets motor target speed between 0 and 100.",
+            inputSchema={
+                "type": "object",
+                "properties": {"target_speed": {"type": "number", "minimum": 0, "maximum": 100}},
+                "required": ["target_speed"],
+            }
+        ),
     ]
 
 
@@ -77,6 +92,11 @@ async def call_tool(name: str, arguments: dict):
         elif name == "toggle_error":
             result = await _api_post("/error")
             return [TextContent(type="text", text=f"Error toggled. State: {result}")]
+        
+        elif name == "set_speed_target":
+            target_speed = float(arguments.get("target_speed"))
+            result = await _api_post_json("/speed-target", {"target_speed": target_speed})
+            return [TextContent(type="text", text=f"Target speed set to {target_speed}. State: {result}")]
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]

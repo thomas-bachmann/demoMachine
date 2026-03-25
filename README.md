@@ -62,18 +62,21 @@ Ajouter dans `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\C
 {
   "mcpServers": {
     "demo-machine": {
-      "url": "http://localhost:8001/sse"
+      "url": "http://localhost:8001/sse" # URL locale pour développement
     },
     "demo-machine": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "http://localhost:8001/sse"
+        "http://IP/mcp/sse", # URL publique après déploiement
+        "--allow-http"
       ]
     }
   }
 }
 ```
+
+**Note** : Le flag `--allow-http` est nécessaire pour l'accès HTTP non-local. Pour HTTPS, remplacer `http://` par `https://`.
 
 ## Outils MCP disponibles
 
@@ -87,7 +90,7 @@ Ajouter dans `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\C
 
 ## Déploiement serveur (Hetzner) pas à pas
 
-Ce guide décrit une configuration simple et sécurisée : SSH par clé, port SSH custom, firewall strict, reverse proxy HTTPS en `443`.
+Ce guide décrit une configuration simple et sécurisée : SSH par clé, port SSH custom, firewall strict, reverse proxy HTTP sur IP (HTTPS optionnel).
 
 ### 1) Créer le serveur
 
@@ -101,8 +104,7 @@ Ce guide décrit une configuration simple et sécurisée : SSH par clé, port SS
 Règles entrantes minimales :
 
 - `TCP 2222` (SSH) depuis votre IP uniquement (`x.x.x.x/32`)
-- `TCP 80` depuis `0.0.0.0/0` et `::/0` (certificat)
-- `TCP 443` depuis `0.0.0.0/0` et `::/0`
+- `TCP 80` (HTTP) depuis `0.0.0.0/0` et `::/0`
 
 Règles sortantes :
 
@@ -151,7 +153,7 @@ curl http://127.0.0.1:8000
 curl http://127.0.0.1:8001/sse
 ```
 
-### 7) Mettre en place le reverse proxy Nginx (HTTPS)
+### 7) Mettre en place le reverse proxy Nginx
 
 Créer `/etc/nginx/sites-available/demo-machine` :
 
@@ -159,7 +161,7 @@ Créer `/etc/nginx/sites-available/demo-machine` :
 server {
   listen 80;
   listen [::]:80;
-  server_name votre-domaine.tld;
+  server_name _;
 
   location / {
     proxy_pass http://127.0.0.1:3000;
@@ -200,23 +202,32 @@ ln -s /etc/nginx/sites-available/demo-machine /etc/nginx/sites-enabled/demo-mach
 nginx -t && systemctl reload nginx
 ```
 
-### 8) Générer le certificat TLS
+### 8) Vérifier l'accès public
+
+Depuis votre PC/téléphone, vérifier :
 
 ```bash
-certbot --nginx -d votre-domaine.tld
+curl http://IP/
 ```
 
-Puis vérifier :
+Ou accéder via navigateur :
 
-- Frontend : `https://votre-domaine.tld/`
-- MCP SSE : `https://votre-domaine.tld/mcp/sse`
+- Frontend : `http://IP/`
+- MCP SSE : `http://IP/mcp/sse`
 
 ### 9) Configurer le client MCP
 
-Exemple d'URL à utiliser côté client MCP :
+Dans Claude Desktop (`claude_desktop_config.json`) :
 
-```text
-https://votre-domaine.tld/mcp/sse
+```json
+{
+  "mcpServers": {
+    "demo-machine": {
+      "command": "npx",
+      "args": ["mcp-remote", "http://IP/mcp/sse", "--allow-http"]
+    }
+  }
+}
 ```
 
 ### 10) Checklist sécurité finale
@@ -224,8 +235,9 @@ https://votre-domaine.tld/mcp/sse
 - `22` fermé dans le firewall Hetzner
 - SSH uniquement sur `2222`
 - Authentification par clé uniquement (`PasswordAuthentication no`)
-- Ports `3000`, `8000`, `8001` non exposés publiquement
-- Accès public uniquement via `443` (et `80` pour challenge/redirect)
+- Ports `3000`, `8000`, `8001` non exposés au public (localhost-bound)
+- Accès public uniquement via port `80` (HTTP) via Nginx reverse proxy
+- ⚠️ **À faire ultérieurement** : Migrer vers HTTPS avec Certbot + domaine pour enlever le flag `--allow-http`
 
 ## Structure
 

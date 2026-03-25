@@ -6,6 +6,10 @@ const hasWarning = ref(false)
 const hasError = ref(false)
 const loading = ref(false)
 const backendAvailable = ref(true)
+const currentSpeed = ref(0)
+const targetSpeed = ref(0)
+const sliderValue = ref(0)
+const isDragging = ref(false)
 
 // Récupère l'état depuis le backend
 async function fetchState() {
@@ -17,6 +21,9 @@ async function fetchState() {
       hasWarning.value = data.has_warning
       hasError.value = data.has_error
       backendAvailable.value = true
+      currentSpeed.value = data.current_speed ?? 0
+      targetSpeed.value = data.target_speed ?? 0
+      if (!isDragging.value) sliderValue.value = targetSpeed.value
     }
   } catch {
     backendAvailable.value = false
@@ -69,6 +76,14 @@ async function simulateError() {
   loading.value = false
 }
 
+async function commitSpeedTarget() {
+  await fetch('/api/speed-target', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target_speed: Number(sliderValue.value)})
+  })
+}
+
 let pollTimer = null
 const POLL_MS = 1000
 
@@ -115,6 +130,14 @@ onUnmounted(() => {
       <button @click="simulateError" :disabled="!isOn || loading">
         Simulate Error
       </button>
+      <input type="range" min="0" max="100" step="1"
+        v-model.number="sliderValue"
+        :disabled="!isOn || loading"
+        @pointerdown="isDragging = true"
+        @pointerup="isDragging = false"
+        @change="commitSpeedTarget" />
+      <div>Target speed: {{ targetSpeed.toFixed(1) }}</div>
+      <div>Current speed: {{ currentSpeed.toFixed(1) }}</div>
     </div>
   </div>
 </template>
