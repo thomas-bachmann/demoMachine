@@ -49,7 +49,8 @@ n8n:
 
 # Relance n8n en recréant le conteneur
 n8n-up:
-	$(COMPOSE) up -d --force-recreate n8n
+	$(COMPOSE) rm -sf n8n || true
+	$(COMPOSE) up -d n8n
 
 # Déploie la conf nginx host depuis le template versionné
 nginx-apply:
