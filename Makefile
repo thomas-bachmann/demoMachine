@@ -1,4 +1,4 @@
-.PHONY: up down build restart logs frontend backend mcp clean
+.PHONY: up down build restart logs frontend backend mcp n8n clean
 
 COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; fi)
 
@@ -34,6 +34,9 @@ backend:
 
 mcp:
 	$(COMPOSE) up mcp -d --build
+
+n8n:
+	$(COMPOSE) up n8n -d
 
 # Nettoie tout (containers + images)
 clean:
