@@ -1,0 +1,55 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name ${SERVER_IP};
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Endpoint MCP "public" avec préfixe
+    location = /mcp/sse {
+        proxy_pass http://127.0.0.1:8001/sse;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        proxy_cache off;
+        add_header Cache-Control no-cache;
+    }
+
+    # Support callback /messages sans préfixe (important)
+    location ^~ /messages {
+        proxy_pass http://127.0.0.1:8001/messages;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    # Support callback /mcp/messages aussi
+    location ^~ /mcp/messages {
+        rewrite ^/mcp/messages(.*)$ /messages$1 break;
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    location = /n8n {
+        return 301 /n8n/;
+    }
+
+    location /n8n/ {
+        proxy_pass http://127.0.0.1:5678;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600;
+    }
+}
