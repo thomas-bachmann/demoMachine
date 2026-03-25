@@ -51,13 +51,16 @@ services:
       - N8N_SECURE_COOKIE=false
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=change-me-now
+      - N8N_BASIC_AUTH_PASSWORD=PoilAuMenton
       - TZ=Europe/Zurich
     volumes:
-      - ./n8n_data:/home/node/.n8n
+      - n8n_data:/home/node/.n8n
     networks:
       - machine-net
     restart: unless-stopped
+
+volumes:
+  n8n_data:
 
 networks:
   machine-net:
