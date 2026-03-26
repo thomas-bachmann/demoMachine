@@ -85,7 +85,7 @@ async function commitSpeedTarget() {
 }
 
 let pollTimer = null
-const POLL_MS = 1000
+const POLL_MS = 500
 
 onMounted(() => {
   fetchState()
