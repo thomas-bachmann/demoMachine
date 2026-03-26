@@ -25,7 +25,7 @@ build: stack-build n8n-up nginx-apply check
 
 # Arrête tout
 down:
-	$(COMPOSE) down
+	$(COMPOSE) down -v
 
 # Redémarre tout
 restart: down up
