@@ -58,14 +58,14 @@ caddy-apply:
 	@test -f caddy_config/Caddyfile.template || (echo "Missing caddy_config/Caddyfile.template" && exit 1)
 	@set -a; . ./$(ENV_FILE); set +a; \
 	envsubst '$$SERVER_IP' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
+	@$(MAKE) caddy-fmt
 	@sudo caddy validate --config caddy_config/Caddyfile
 	@sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
 	@sudo systemctl reload caddy
-	@$(MAKE) caddy-fmt
 
 # Formate le Caddyfile généré selon les standards Caddy
 caddy-fmt:
-	@sudo caddy fmt --overwrite /etc/caddy/Caddyfile
+	@caddy fmt --overwrite caddy_config/Caddyfile
 
 # Vérifs rapides locales serveur
 check:
