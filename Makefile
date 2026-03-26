@@ -1,8 +1,7 @@
-ENV_FILE := .env
-NGINX_TEMPLATE := deploy/nginx/demo-machine.conf.template
-NGINX_SITE := /etc/nginx/sites-available/demo-machine
 
-.PHONY: up down build restart logs frontend backend mcp n8n n8n-up stack-up stack-build nginx-apply check clean
+ENV_FILE := .env
+
+.PHONY: up down build restart logs frontend backend mcp n8n n8n-up stack-up stack-build caddy-apply check clean
 
 COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; fi)
 
@@ -17,11 +16,11 @@ stack-up:
 stack-build:
 	$(COMPOSE) up -d --build
 
-# Lance toute la stack + n8n + applique nginx host + vérifications
-up: stack-up n8n-up nginx-apply check
+# Lance toute la stack + n8n + applique caddy host + vérifications
+up: stack-up n8n-up caddy-apply check
 
-# Build + relance + applique nginx host + vérifications
-build: stack-build n8n-up nginx-apply check
+# Build + relance + applique caddy host + vérifications
+build: stack-build n8n-up caddy-apply check
 
 # Arrête tout
 down:
@@ -52,19 +51,30 @@ n8n-up:
 	$(COMPOSE) rm -sf n8n || true
 	$(COMPOSE) up -d n8n
 
-# Déploie la conf nginx host depuis le template versionné
-nginx-apply:
+# Déploie la conf Caddy host depuis le template versionné
+caddy-apply:
 	@test -f $(ENV_FILE) || (echo "Missing $(ENV_FILE)" && exit 1)
-	@test -f $(NGINX_TEMPLATE) || (echo "Missing $(NGINX_TEMPLATE)" && exit 1)
+	@test -f caddy_config/Caddyfile.template || (echo "Missing caddy_config/Caddyfile.template" && exit 1)
 	@set -a; . ./$(ENV_FILE); set +a; \
-	: "$$SERVER_IP"; \
-	envsubst '$$SERVER_IP' < $(NGINX_TEMPLATE) | sudo tee $(NGINX_SITE) >/dev/null; \
-	sudo nginx -t && sudo systemctl reload nginx
+	envsubst '$$SERVER_IP' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
+	@sudo caddy validate --config caddy_config/Caddyfile
+	@sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
+	@sudo systemctl reload caddy
+
+# Déploie la conf Caddy host depuis le template versionné
+caddy-apply:
+    @test -f $(ENV_FILE) || (echo "Missing $(ENV_FILE)" && exit 1)
+    @test -f caddy_config/Caddyfile.template || (echo "Missing caddy_config/Caddyfile.template" && exit 1)
+    @set -a; . ./$(ENV_FILE); set +a; \
+    envsubst '$$SERVER_IP' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
+    @sudo caddy validate --config caddy_config/Caddyfile
+    @sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
+    @sudo systemctl reload caddy
 
 # Vérifs rapides locales serveur
 check:
 	@curl -fsS -I http://127.0.0.1:5678 >/dev/null && echo "OK n8n direct (127.0.0.1:5678)"
-	@curl -fsS -I http://127.0.0.1/n8n/ >/dev/null && echo "OK nginx /n8n/"
+	@curl -fsS -I http://$${SERVER_IP}/n8n/ >/dev/null && echo "OK caddy /n8n/"
 
 # Nettoie tout (containers + images + volumes)
 clean:

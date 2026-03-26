@@ -1,0 +1,6 @@
+http://77.42.30.68 {
+    handle_path /n8n/* {
+        reverse_proxy n8n:5678
+    }
+    encode gzip
+}

@@ -1,0 +1,6 @@
+http://$SERVER_IP {
+    handle_path /n8n/* {
+        reverse_proxy n8n:5678
+    }
+    encode gzip
+}
