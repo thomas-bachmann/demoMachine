@@ -2,5 +2,8 @@ http://$SERVER_IP {
     handle_path /n8n/* {
         reverse_proxy n8n:5678
     }
+    handle /* {
+        reverse_proxy frontend:80
+    }
     encode gzip
 }
