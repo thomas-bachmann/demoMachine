@@ -2,8 +2,9 @@ http://$SERVER_IP {
     handle_path /n8n/* {
         reverse_proxy 127.0.0.1:5678
     }
-    handle_path /mcp/sse/* {
+    handle_path /mcp/sse* {
         uri strip_prefix /mcp
+        header_down Content-Type "text/event-stream"
         reverse_proxy 127.0.0.1:8001
     }
     handle_path /mcp/messages/* {
