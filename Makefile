@@ -51,6 +51,7 @@ n8n-up:
 	$(COMPOSE) up -d n8n
 
 
+
 # Déploie la conf Caddy host depuis le template versionné
 caddy-apply:
 	@test -f $(ENV_FILE) || (echo "Missing $(ENV_FILE)" && exit 1)
@@ -60,6 +61,7 @@ caddy-apply:
 	@sudo caddy validate --config caddy_config/Caddyfile
 	@sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
 	@sudo systemctl reload caddy
+	@$(MAKE) caddy-fmt
 
 # Formate le Caddyfile généré selon les standards Caddy
 caddy-fmt:
