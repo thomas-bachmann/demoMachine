@@ -63,13 +63,13 @@ caddy-apply:
 
 # Déploie la conf Caddy host depuis le template versionné
 caddy-apply:
-    @test -f $(ENV_FILE) || (echo "Missing $(ENV_FILE)" && exit 1)
-    @test -f caddy_config/Caddyfile.template || (echo "Missing caddy_config/Caddyfile.template" && exit 1)
-    @set -a; . ./$(ENV_FILE); set +a; \
-    envsubst '$$SERVER_IP' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
-    @sudo caddy validate --config caddy_config/Caddyfile
-    @sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
-    @sudo systemctl reload caddy
+	@test -f $(ENV_FILE) || (echo "Missing $(ENV_FILE)" && exit 1)
+	@test -f caddy_config/Caddyfile.template || (echo "Missing caddy_config/Caddyfile.template" && exit 1)
+	@set -a; . ./$(ENV_FILE); set +a; \
+	envsubst '$$SERVER_IP' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
+	@sudo caddy validate --config caddy_config/Caddyfile
+	@sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
+	@sudo systemctl reload caddy
 
 # Vérifs rapides locales serveur
 check:
