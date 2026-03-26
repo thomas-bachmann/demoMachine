@@ -3,9 +3,11 @@ http://$SERVER_IP {
         reverse_proxy 127.0.0.1:5678
     }
     handle_path /mcp/sse* {
+        uri strip_prefix /mcp
         reverse_proxy 127.0.0.1:8001
     }
     handle_path /mcp/messages* {
+        uri strip_prefix /mcp
         reverse_proxy 127.0.0.1:8001
     }
     handle /* {
