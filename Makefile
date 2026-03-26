@@ -1,7 +1,6 @@
-
 ENV_FILE := .env
 
-.PHONY: up down build restart logs frontend backend mcp n8n n8n-up stack-up stack-build caddy-apply check clean
+.PHONY: up down build restart logs frontend backend mcp n8n n8n-up stack-up stack-build caddy-apply check clean caddy-fmt
 
 COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; fi)
 
@@ -61,6 +60,10 @@ caddy-apply:
 	@sudo caddy validate --config caddy_config/Caddyfile
 	@sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
 	@sudo systemctl reload caddy
+
+# Formate le Caddyfile généré selon les standards Caddy
+caddy-fmt:
+	@sudo caddy fmt --overwrite /etc/caddy/Caddyfile
 
 # Vérifs rapides locales serveur
 check:
