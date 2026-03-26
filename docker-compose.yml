@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:2.12.0
     container_name: machine-n8n
     ports:
       - "127.0.0.1:5678:5678"
