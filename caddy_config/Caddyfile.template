@@ -1,10 +1,10 @@
 mcp.$DOMAIN {
-    handle /mcp/sse* {
+    handle /mcp/sse/* {
         uri strip_prefix /mcp
         header Content-Type "text/event-stream"
         reverse_proxy 127.0.0.1:8001
     }
-    handle /mcp/messages* {
+    handle /mcp/messages/* {
         uri strip_prefix /mcp
         reverse_proxy 127.0.0.1:8001
     }
