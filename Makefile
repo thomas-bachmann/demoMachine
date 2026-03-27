@@ -23,7 +23,7 @@ build: stack-build n8n-up caddy-apply check
 
 # Arrête tout
 down:
-	$(COMPOSE) down -v
+	$(COMPOSE) down
 
 # Redémarre tout
 restart: down up
@@ -72,6 +72,6 @@ check:
 	@curl -fsS -I http://127.0.0.1:5678 >/dev/null && echo "OK n8n direct (127.0.0.1:5678)"
 	@curl -fsS -I http://$${SERVER_IP}/n8n/ >/dev/null && echo "OK caddy /n8n/"
 
-# Nettoie tout (containers + images + volumes)
+# Nettoie tout (containers + images), mais conserve le volume n8n_data
 clean:
-	$(COMPOSE) down --rmi local -v
+	$(COMPOSE) down --rmi local
