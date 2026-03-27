@@ -1,7 +1,4 @@
-http://$SERVER_IP {
-    handle_path /n8n/* {
-        reverse_proxy 127.0.0.1:5678
-    }
+mcp.$DOMAIN {
     handle /mcp/sse* {
         uri strip_prefix /mcp
         header Content-Type "text/event-stream"
@@ -11,6 +8,17 @@ http://$SERVER_IP {
         uri strip_prefix /mcp
         reverse_proxy 127.0.0.1:8001
     }
+    encode gzip
+}
+
+n8n.$DOMAIN {
+    handle_path /n8n/* {
+        reverse_proxy 127.0.0.1:5678
+    }
+    encode gzip
+}
+
+app.$DOMAIN {
     handle /* {
         reverse_proxy 127.0.0.1:3000
     }
