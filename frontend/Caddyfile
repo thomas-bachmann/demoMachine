@@ -4,18 +4,9 @@
 
     handle_path /api/* {
         reverse_proxy http://backend:8000 {
-            # Timeout équivalents à nginx
             transport http {
-                read_buffer 4096
                 response_header_timeout 30s
                 dial_timeout 5s
-            }
-            # Gestion d’erreur backend indisponible
-            handle_response {
-                @backend_unavailable status 502 503 504
-                respond `{"error": "Backend unavailable"}` 503 {
-                    content_type application/json
-                }
             }
         }
     }
