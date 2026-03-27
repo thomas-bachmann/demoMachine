@@ -3,8 +3,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import math, time
+import os
+import httpx
+
+
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 app = FastAPI(title="Demo Machine API")
+def update_webhook():
+    """Envoie l'état courant au webhook n8n si l'URL est définie."""
+    if WEBHOOK_URL:
+        try:
+            httpx.post(WEBHOOK_URL, json=state.dict())
+        except Exception as e:
+            print(f"Erreur lors de l'appel du webhook n8n: {e}")
+    return state
 
 # CORS (utile pour le dev local)
 app.add_middleware(
@@ -54,22 +67,22 @@ def toggle_power():
     if not state.is_on:
         state.has_warning = False
         state.has_error = False
-    return state
+    return update_webhook()
 
 @app.post("/warning")
 def toggle_warning():
     if state.is_on:
         state.has_warning = not state.has_warning
-    return state
+    return update_webhook()
 
 @app.post("/error")
 def toggle_error():
     if state.is_on:
         state.has_error = not state.has_error
-    return state
+    return update_webhook()
 
 @app.post("/speed-target")
 def set_speed_target(payload: SpeedTargetIn):
     update_speed()
     state.target_speed = payload.target_speed
-    return state
+    return update_webhook()
