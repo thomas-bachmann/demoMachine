@@ -57,7 +57,7 @@ caddy-apply:
 	@test -f $(ENV_FILE) || (echo "Missing $(ENV_FILE)" && exit 1)
 	@test -f caddy_config/Caddyfile.template || (echo "Missing caddy_config/Caddyfile.template" && exit 1)
 	@set -a; . ./$(ENV_FILE); set +a; \
-	envsubst '$$SERVER_IP' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
+	envsubst '$$SERVER_IP $$DOMAIN' < caddy_config/Caddyfile.template > caddy_config/Caddyfile
 	@$(MAKE) caddy-fmt
 	@sudo caddy validate --config caddy_config/Caddyfile
 	@sudo cp caddy_config/Caddyfile /etc/caddy/Caddyfile
