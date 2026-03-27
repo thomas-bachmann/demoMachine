@@ -9,15 +9,15 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ── Stage 2 : serve ──────────────────────────────────────────
-FROM nginx:alpine AS runner
-
-# Config nginx pour SPA (react-router friendly)
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# ── Stage 2 : serve (Caddy) ─────────────────────────────────
+FROM caddy:alpine AS runner
 
 # Copie du build
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copie la config Caddy
+COPY Caddyfile /etc/caddy/Caddyfile
+
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Caddy utilise déjà le bon CMD par défaut
