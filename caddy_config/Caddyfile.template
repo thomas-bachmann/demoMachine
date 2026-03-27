@@ -8,6 +8,11 @@ mcp.$DOMAIN {
         uri strip_prefix /mcp
         reverse_proxy 127.0.0.1:8001
     }
+    header {
+        Access-Control-Allow-Origin *
+        Access-Control-Allow-Methods GET,POST,OPTIONS
+        Access-Control-Allow-Headers Content-Type
+    }
     encode gzip
 }
 
