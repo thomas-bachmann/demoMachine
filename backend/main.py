@@ -10,11 +10,12 @@ import httpx
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 app = FastAPI(title="Demo Machine API")
+
 def update_webhook():
     """Envoie l'état courant au webhook n8n si l'URL est définie."""
     if WEBHOOK_URL:
         try:
-            httpx.post(WEBHOOK_URL, json=state.dict())
+            httpx.post(WEBHOOK_URL, json=state.model_dump())
         except Exception as e:
             print(f"Erreur lors de l'appel du webhook n8n: {e}")
     return state
@@ -59,7 +60,7 @@ def root():
 @app.get("/state")
 def get_state():
     update_speed()
-    return state
+    return update_webhook()
 
 @app.post("/toggle")
 def toggle_power():
