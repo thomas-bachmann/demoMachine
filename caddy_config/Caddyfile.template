@@ -20,7 +20,7 @@ mcp.$DOMAIN {
 }
 
 n8n.$DOMAIN {
-    handle_path /n8n* {
+    handle_path /n8n/* {
         reverse_proxy 127.0.0.1:5678
     }
     encode gzip
