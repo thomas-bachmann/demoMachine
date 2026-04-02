@@ -148,12 +148,13 @@ async function simulateError() {
 
 async function commitSpeedTarget(motorId) {
   if (!motorId) return
+  const motorIdNum = parseInt(motorId.split('_')[1])  // "motor_1" -> 1
   await fetch('/api/speed-target', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       target_speed: Number(sliderValues.value[motorId]),
-      motor_id: motorId
+      motor_id: motorIdNum
     })
   })
 }
@@ -286,6 +287,7 @@ onUnmounted(() => {
   grid-template-columns: 220px minmax(0, 1fr) 320px;
   gap: 12px;
   padding: 12px;
+  margin: 0px;
   background:
     radial-gradient(circle at 12% 8%, rgba(88, 208, 255, 0.14), transparent 28%),
     radial-gradient(circle at 84% 92%, rgba(61, 108, 255, 0.12), transparent 32%),

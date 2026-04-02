@@ -30,8 +30,45 @@ async def _api_post_json(path: str, payload: dict) -> dict:
         return r.json()
 
 
+async def _get_backend_motor_ids() -> list[int]:
+    """Discover motor IDs from backend state to keep MCP schema in sync."""
+    try:
+        state = await _api_get("/state")
+    except Exception:
+        return []
+
+    ids: list[int] = []
+    motors = state.get("motors")
+
+    if isinstance(motors, list):
+        for motor in motors:
+            if isinstance(motor, dict) and "id" in motor:
+                try:
+                    motor_id = int(motor["id"])
+                    if motor_id > 0:
+                        ids.append(motor_id)
+                except (TypeError, ValueError):
+                    continue
+
+    if not ids:
+        for key in state.keys():
+            if key.startswith("motor_"):
+                suffix = key.split("motor_", 1)[1]
+                if suffix.isdigit():
+                    ids.append(int(suffix))
+
+    return sorted(set(ids))
+
+
 @server.list_tools()
 async def list_tools():
+    motor_ids = await _get_backend_motor_ids()
+    motor_id_schema = {"type": "integer"}
+    if motor_ids:
+        motor_id_schema["enum"] = motor_ids
+    else:
+        motor_id_schema["minimum"] = 1
+
     return [
         Tool(
             name="get_status",
@@ -65,7 +102,7 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "target_speed": {"type": "number", "minimum": 0, "maximum": 100},
-                    "motor_id": {"type": "string", "enum": ["motor_1", "motor_2"]}
+                    "motor_id": motor_id_schema
                 },
                 "required": ["target_speed", "motor_id"],
             }
@@ -98,11 +135,18 @@ async def call_tool(name: str, arguments: dict):
         
         elif name == "set_speed_target":
             target_speed = float(arguments.get("target_speed"))
-            motor_id = arguments.get("motor_id")
-            if motor_id not in {"motor_1", "motor_2"}:
-                return [TextContent(type="text", text="Please specify motor_id as motor_1 or motor_2.")]
+            motor_id = int(arguments.get("motor_id"))
+            available_motor_ids = await _get_backend_motor_ids()
+            if available_motor_ids and motor_id not in set(available_motor_ids):
+                return [
+                    TextContent(
+                        type="text",
+                        text=f"Please specify motor_id as one of: {available_motor_ids}."
+                    )
+                ]
             result = await _api_post_json("/speed-target", {"target_speed": target_speed, "motor_id": motor_id})
-            return [TextContent(type="text", text=f"{motor_id} target speed set to {target_speed}. State: {result}")]
+            motor_name = f"Motor {motor_id}"
+            return [TextContent(type="text", text=f"{motor_name} target speed set to {target_speed}. State: {result}")]
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]

@@ -1,7 +1,8 @@
 # backend/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, AliasChoices
+from pydantic import BaseModel, Field, AliasChoices, computed_field
+from typing import List
 import math, time
 import os
 import httpx
@@ -29,6 +30,7 @@ app.add_middleware(
 )
 
 class MotorSlide(BaseModel):
+    id: int = 0
     current_speed: float = 0.0
     target_speed: float = 0.0
     tau_s: float = 1.5
@@ -43,27 +45,42 @@ class MachineState(BaseModel):
     is_on: bool = False
     has_warning: bool = False
     has_error: bool = False
-    motor_1: MotorSlide = Field(default_factory=MotorSlide)
-    motor_2: MotorSlide = Field(default_factory=lambda: MotorSlide(tau_s=3.0))
+    motors: List[MotorSlide] = Field(
+        default_factory=lambda: [
+            MotorSlide(id=1, tau_s=1.5),
+            MotorSlide(id=2, tau_s=3.0)
+        ]
+    )
+    last_update: float = Field(default_factory=time.monotonic)
+
+    @computed_field
+    @property
+    def motor_1(self) -> MotorSlide:
+        return self.motors[0]
+
+    @computed_field
+    @property
+    def motor_2(self) -> MotorSlide:
+        return self.motors[1]
+
+    def reset(self):
+        for motor in self.motors:
+            motor.target_speed = 0
+        self.has_warning = False
+        self.has_error = False
+
+    def updateSpeed(self):
+        now = time.monotonic()
+        dt = now - self.last_update
+        self.last_update = now
+        for motor in self.motors:
+            motor.updateSpeed(self.is_on, dt)
 
 class SpeedTargetIn(BaseModel):
     target_speed: float = Field(ge=0, le=100)
-    motor_id: str = Field(
-        default="motor_1",
-        validation_alias=AliasChoices("motor_id", "motorId")
-    )
-
-last_update = time.monotonic()
+    motor_id: int = Field(ge=1, le=2)
 
 state = MachineState()
-
-def updateSpeed():
-    global last_update
-    now = time.monotonic()
-    dt = now - last_update
-    last_update = now
-    state.motor_1.updateSpeed(state.is_on, dt)
-    state.motor_2.updateSpeed(state.is_on, dt)
 
 @app.get("/")
 def root():
@@ -71,15 +88,14 @@ def root():
 
 @app.get("/state")
 def get_state():
-    updateSpeed()
+    state.updateSpeed()
     return update_webhook().model_dump()
 
 @app.post("/toggle")
 def toggle_power():
     state.is_on = not state.is_on
     if not state.is_on:
-        state.has_warning = False
-        state.has_error = False
+        state.reset()
     return update_webhook()
 
 @app.post("/warning")
@@ -96,10 +112,9 @@ def toggle_error():
 
 @app.post("/speed-target")
 def set_speed_target(payload: SpeedTargetIn):
-    updateSpeed()
-    motor_id = payload.motor_id if payload.motor_id in {"motor_1", "motor_2"} else "motor_1"
-    if motor_id == "motor_2":
-        state.motor_2.target_speed = payload.target_speed
-    else:
-        state.motor_1.target_speed = payload.target_speed
+    state.updateSpeed()
+    for motor in state.motors:
+        if motor.id == payload.motor_id:
+            motor.target_speed = payload.target_speed
+            break
     return update_webhook()
