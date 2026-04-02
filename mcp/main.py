@@ -60,6 +60,21 @@ async def _get_backend_motor_ids() -> list[int]:
     return sorted(set(ids))
 
 
+def _normalize_motor_id(value) -> int:
+    """Accept int IDs and legacy strings like 'motor_1' or '1'."""
+    if isinstance(value, int):
+        return value
+
+    if isinstance(value, str):
+        cleaned = value.strip().lower()
+        if cleaned.startswith("motor_"):
+            cleaned = cleaned.split("motor_", 1)[1]
+        if cleaned.isdigit():
+            return int(cleaned)
+
+    raise ValueError("Invalid motor_id format")
+
+
 @server.list_tools()
 async def list_tools():
     motor_ids = await _get_backend_motor_ids()
@@ -135,7 +150,16 @@ async def call_tool(name: str, arguments: dict):
         
         elif name == "set_speed_target":
             target_speed = float(arguments.get("target_speed"))
-            motor_id = int(arguments.get("motor_id"))
+            try:
+                motor_id = _normalize_motor_id(arguments.get("motor_id"))
+            except ValueError:
+                return [
+                    TextContent(
+                        type="text",
+                        text="Please specify motor_id as an integer (for example 1 or 2)."
+                    )
+                ]
+
             available_motor_ids = await _get_backend_motor_ids()
             if available_motor_ids and motor_id not in set(available_motor_ids):
                 return [
