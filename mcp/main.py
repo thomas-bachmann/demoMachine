@@ -60,11 +60,14 @@ async def list_tools():
         ),
         Tool(
             name="set_speed_target",
-            description="Sets motor target speed between 0 and 100.",
+            description="Sets a motor target speed between 0 and 100. motor_id is required.",
             inputSchema={
                 "type": "object",
-                "properties": {"target_speed": {"type": "number", "minimum": 0, "maximum": 100}},
-                "required": ["target_speed"],
+                "properties": {
+                    "target_speed": {"type": "number", "minimum": 0, "maximum": 100},
+                    "motor_id": {"type": "string", "enum": ["motor_1", "motor_2"]}
+                },
+                "required": ["target_speed", "motor_id"],
             }
         ),
     ]
@@ -95,8 +98,11 @@ async def call_tool(name: str, arguments: dict):
         
         elif name == "set_speed_target":
             target_speed = float(arguments.get("target_speed"))
-            result = await _api_post_json("/speed-target", {"target_speed": target_speed})
-            return [TextContent(type="text", text=f"Target speed set to {target_speed}. State: {result}")]
+            motor_id = arguments.get("motor_id")
+            if motor_id not in {"motor_1", "motor_2"}:
+                return [TextContent(type="text", text="Please specify motor_id as motor_1 or motor_2.")]
+            result = await _api_post_json("/speed-target", {"target_speed": target_speed, "motor_id": motor_id})
+            return [TextContent(type="text", text=f"{motor_id} target speed set to {target_speed}. State: {result}")]
 
         else:
             return [TextContent(type="text", text=f"Unknown tool: {name}")]
