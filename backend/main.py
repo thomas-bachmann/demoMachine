@@ -44,7 +44,7 @@ class MachineState(BaseModel):
     has_warning: bool = False
     has_error: bool = False
     motor_1: MotorSlide = Field(default_factory=MotorSlide)
-    motor_2: MotorSlide = Field(default_factory=lambda: MotorSlide(tau_s=1.8))
+    motor_2: MotorSlide = Field(default_factory=lambda: MotorSlide(tau_s=3.0))
 
 class SpeedTargetIn(BaseModel):
     target_speed: float = Field(ge=0, le=100)
@@ -72,9 +72,7 @@ def root():
 @app.get("/state")
 def get_state():
     updateSpeed()
-    payload = update_webhook().model_dump()
-    payload["motor_slide"] = payload["motor_1"]
-    return payload
+    return update_webhook().model_dump()
 
 @app.post("/toggle")
 def toggle_power():

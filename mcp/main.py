@@ -60,7 +60,7 @@ async def list_tools():
         ),
         Tool(
             name="set_speed_target",
-            description="Sets a motor target speed between 0 and 100. If motor_id is not explicitly specified by the user, you MUST ask which motor to use before calling this tool. Never assume a default.",
+            description="Sets a motor target speed between 0 and 100. CRITICAL SAFETY RULE: NEVER assume or infer the motor_id from context or previous interactions. ALWAYS explicitly ask the user which motor they want to target before calling this tool, even if a motor was used previously.",
             inputSchema={
                 "type": "object",
                 "properties": {
