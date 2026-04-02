@@ -25,18 +25,9 @@ const speedHistory = ref({
   motor_2: []
 })
 
-const HISTORY_WINDOW_MS = 10 * 60 * 1000
+const n8nUrl = import.meta.env.VITE_N8N_URL || 'http://localhost:5678/'
 
-const leftMenu = [
-  'Supervision',
-  'Operation',
-  'CNC',
-  'Tools',
-  'Recipe',
-  'Maintenance',
-  'Diagnostic',
-  'Configuration'
-]
+const HISTORY_WINDOW_MS = 10 * 60 * 1000
 
 const motorCards = computed(() => {
   return [
@@ -58,6 +49,10 @@ function onDragStart(motorId) {
 function onDragEnd(motorId) {
   if (!motorId) return
   isDragging.value[motorId] = false
+}
+
+function openN8n() {
+  window.open(n8nUrl, '_blank', 'noopener,noreferrer')
 }
 
 function updateSpeedHistory(motorId, speed) {
@@ -176,8 +171,11 @@ onUnmounted(() => {
         <span class="brand-name">DemoMachine</span>
       </div>
       <nav>
-        <button v-for="item in leftMenu" :key="item" class="menu-item">
-          {{ item }}
+        <button class="menu-item active" type="button">
+          Supervision
+        </button>
+        <button class="menu-item" type="button" @click="openN8n">
+          n8n
         </button>
       </nav>
     </aside>
