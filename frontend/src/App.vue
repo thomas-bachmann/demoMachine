@@ -25,7 +25,15 @@ const speedHistory = ref({
   motor_2: []
 })
 
-const n8nUrl = import.meta.env.VITE_N8N_URL || 'http://localhost:5678/'
+function getDefaultN8nUrl() {
+  const { protocol, hostname } = window.location
+  if (hostname.startsWith('app.')) {
+    return `${protocol}//${hostname.replace(/^app\./, 'n8n.')}/n8n/`
+  }
+  return `${protocol}//${hostname}/n8n/`
+}
+
+const n8nUrl = import.meta.env.VITE_N8N_URL || getDefaultN8nUrl()
 
 const HISTORY_WINDOW_MS = 10 * 60 * 1000
 
