@@ -89,7 +89,7 @@ def root():
 @app.get("/state")
 def get_state():
     state.updateSpeed()
-    return update_webhook().model_dump()
+    return state
 
 @app.post("/toggle")
 def toggle_power():
