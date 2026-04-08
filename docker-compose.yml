@@ -20,7 +20,7 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       - ENV=development
-      - WEBHOOK_URL=https://n8n.${DOMAIN}/n8n/
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL}
     networks:
       - machine-net
     restart: unless-stopped
