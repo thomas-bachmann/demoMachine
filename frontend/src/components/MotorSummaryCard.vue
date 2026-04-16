@@ -58,13 +58,13 @@ const tauS = computed(() => Number(props.motor?.tau_s) || 0)
           r="0.22"
         />
       </svg>
-      <div v-if="!speedPath" class="chart-empty">Données en attente...</div>
+      <div v-if="!speedPath" class="chart-empty">Waiting for data...</div>
     </div>
 
     <div class="chart-footer">
       <span>-10 min</span>
       <span>{{ currentSpeed.toFixed(1) }}%</span>
-      <span>maintenant</span>
+      <span>now</span>
     </div>
     <small>{{ history.length }} points</small>
   </article>

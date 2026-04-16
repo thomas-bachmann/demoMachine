@@ -74,7 +74,7 @@ function updateSpeedHistory(motorId, speed) {
   }))
 }
 
-// Récupère l'état depuis le backend
+// Fetches state from the backend
 async function fetchState() {
   try {
     const res = await fetch('/api/state')
@@ -181,7 +181,7 @@ onUnmounted(() => {
       </div>
       <nav>
         <button class="menu-item active" type="button">
-          Supervision
+          Monitoring
         </button>
         <button class="menu-item" type="button" @click="openN8n">
           n8n
@@ -193,13 +193,13 @@ onUnmounted(() => {
       <header class="dashboard-header">
         <div>
           <h1>Production</h1>
-          <p>Interface opérateur - état machine en temps réel</p>
+          <p>Operator Interface - Real-time Machine Status</p>
         </div>
         <span class="clock-badge">Live</span>
       </header>
 
       <div v-if="!backendAvailable" class="error-banner">
-        Backend non disponible
+        Backend Unavailable
       </div>
 
       <section class="kpi-grid">
