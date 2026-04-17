@@ -45,6 +45,8 @@ class MachineState(BaseModel):
     is_on: bool = False
     has_warning: bool = False
     has_error: bool = False
+    emergency_stop_active: bool = False
+    emergency_stop_acknowledged: bool = False
     motors: List[MotorSlide] = Field(
         default_factory=lambda: [
             MotorSlide(id=1, tau_s=1.5),
@@ -93,6 +95,9 @@ def get_state():
 
 @app.post("/toggle")
 def toggle_power():
+    # Empêcher le démarrage si erreur ou arrêt d'urgence
+    if not state.is_on and (state.has_error or state.emergency_stop_active):
+        return state
     state.is_on = not state.is_on
     if not state.is_on:
         state.reset()
@@ -117,4 +122,17 @@ def set_speed_target(payload: SpeedTargetIn):
         if motor.id == payload.motor_id:
             motor.target_speed = payload.target_speed
             break
+    return update_webhook()
+
+@app.post("/emergency-stop")
+def emergency_stop():
+    state.emergency_stop_active = True
+    state.emergency_stop_acknowledged = False
+    state.is_on = False
+    state.reset()
+    return update_webhook()
+
+@app.post("/emergency-stop-acknowledge")
+def acknowledge_emergency_stop():
+    state.emergency_stop_acknowledged = True
     return update_webhook()

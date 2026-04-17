@@ -8,6 +8,8 @@ const hasWarning = ref(false)
 const hasError = ref(false)
 const loading = ref(false)
 const backendAvailable = ref(true)
+const emergencyStopActive = ref(false)
+const emergencyStopAcknowledged = ref(false)
 const motors = ref({
   motor_1: null,
   motor_2: null
@@ -83,6 +85,8 @@ async function fetchState() {
       isOn.value = data.is_on
       hasWarning.value = data.has_warning
       hasError.value = data.has_error
+      emergencyStopActive.value = data.emergency_stop_active
+      emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
       backendAvailable.value = true
       motors.value.motor_1 = data.motor_1 || data.motor_slide || {}
       motors.value.motor_2 = data.motor_2 || {}
@@ -139,6 +143,36 @@ async function simulateError() {
     if (res.ok) {
       const data = await res.json()
       hasError.value = data.has_error
+    }
+  } catch {
+    backendAvailable.value = false
+  }
+  loading.value = false
+}
+
+async function triggerEmergencyStop() {
+  loading.value = true
+  try {
+    const res = await fetch('/api/emergency-stop', { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      emergencyStopActive.value = data.emergency_stop_active
+      emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
+      isOn.value = data.is_on
+    }
+  } catch {
+    backendAvailable.value = false
+  }
+  loading.value = false
+}
+
+async function acknowledgeEmergencyStop() {
+  loading.value = true
+  try {
+    const res = await fetch('/api/emergency-stop-acknowledge', { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
     }
   } catch {
     backendAvailable.value = false
@@ -218,6 +252,10 @@ onUnmounted(() => {
               <div class="led" :class="{ error: hasError }"></div>
               <span>Error</span>
             </div>
+            <div class="led-group">
+              <div class="led" :class="{ emergency: emergencyStopActive }"></div>
+              <span>E-Stop</span>
+            </div>
           </div>
         </article>
       </section>
@@ -236,16 +274,35 @@ onUnmounted(() => {
     <aside class="right-rail">
       <div class="rail-title">Machine control</div>
       <div class="buttons">
-        <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading">
+        <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || hasError">
           {{ isOn ? 'Power Off' : 'Power On' }}
         </button>
-        <button @click="simulateWarning" :disabled="!isOn || loading">
+        <button @click="simulateWarning" :disabled="loading || emergencyStopActive">
           Simulate Warning
         </button>
-        <button @click="simulateError" :disabled="!isOn || loading">
+        <button @click="simulateError" :disabled="loading || emergencyStopActive">
           Simulate Error
         </button>
       </div>
+
+      <div v-if="emergencyStopActive" class="emergency-stop-panel">
+        <div class="emergency-title">EMERGENCY STOP ACTIVE</div>
+        <button 
+          class="emergency-button emergency-acknowledge" 
+          @click="acknowledgeEmergencyStop"
+          :disabled="loading || emergencyStopAcknowledged"
+        >
+          {{ emergencyStopAcknowledged ? 'Acknowledged ✓' : 'Acknowledge' }}
+        </button>
+      </div>
+
+      <button 
+        @click="triggerEmergencyStop" 
+        class="emergency-button" 
+        :disabled="loading"
+      >
+        ⚠ EMERGENCY STOP
+      </button>
 
       <div class="slider-stack" v-if="motors.motor_1 || motors.motor_2">
         <MotorSlider
@@ -450,6 +507,12 @@ p {
   box-shadow: 0 0 14px rgba(255, 95, 109, 0.9);
 }
 
+.led.emergency {
+  background: var(--err);
+  box-shadow: 0 0 20px rgba(255, 95, 109, 1);
+  animation: blink-emergency 0.5s infinite;
+}
+
 .metric-line {
   display: flex;
   justify-content: space-between;
@@ -520,6 +583,55 @@ button.active {
   gap: 10px;
 }
 
+.emergency-stop-panel {
+  background: rgba(255, 95, 109, 0.14);
+  border: 2px solid var(--err);
+  border-radius: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  animation: pulse-emergency 1s infinite;
+}
+
+.emergency-title {
+  font-weight: 700;
+  color: var(--err);
+  text-align: center;
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+}
+
+.emergency-button {
+  background: linear-gradient(145deg, #8b2626, #5a1818);
+  border: 2px solid var(--err);
+  color: #ffb1b8;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.emergency-button:hover:not(:disabled) {
+  background: linear-gradient(145deg, #a73030, #7a2020);
+  border-color: #ff9aa5;
+  box-shadow: 0 0 12px rgba(255, 95, 109, 0.6);
+}
+
+.emergency-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.emergency-acknowledge {
+  background: linear-gradient(145deg, #4a6b4a, #2a4a2a);
+  border-color: var(--ok);
+  color: #a7e6ff;
+}
+
+.emergency-acknowledge:hover:not(:disabled) {
+  background: linear-gradient(145deg, #5a7b5a, #3a5a3a);
+  border-color: #6dff9a;
+  box-shadow: 0 0 12px rgba(109, 255, 154, 0.6);
+}
+
 @keyframes slideInLeft {
   from {
     transform: translateX(-14px);
@@ -550,6 +662,24 @@ button.active {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes blink-emergency {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes pulse-emergency {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 95, 109, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 95, 109, 0);
   }
 }
 
