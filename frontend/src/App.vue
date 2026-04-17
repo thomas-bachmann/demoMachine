@@ -329,10 +329,10 @@ onUnmounted(() => {
         <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || errorActive">
           {{ isOn ? 'Power Off' : 'Power On' }}
         </button>
-        <button @click="simulateWarning" :disabled="loading || emergencyStopActive || errorActive">
+        <button @click="simulateWarning" :disabled="loading || emergencyStopActive">
           Simulate Warning
         </button>
-        <button @click="simulateError" :disabled="loading || emergencyStopActive || errorActive">
+        <button @click="simulateError" :disabled="loading || emergencyStopActive">
           Simulate Error
         </button>
       </div>
@@ -367,7 +367,7 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <div class="emergency-stop-panel" v-if="errorActive">
+      <div class="emergency-stop-panel">
         <div class="emergency-panel-header">
           <div class="emergency-title" :class="{ active: errorActive }">
             {{ errorActive ? '⚠ ERROR ACTIVE' : 'Error System' }}
