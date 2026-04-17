@@ -8,7 +8,11 @@ import os
 import httpx
 
 from plc import MachineController
-from models import SetMotorSpeedPayload, SetAcknowledgePayload
+from models import (
+    SetMotorSpeedPayload,
+    EmergencyStopButtonPayload,
+    EmergencyStopAcknowledgePayload,
+)
 
 # Configuration
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
@@ -121,22 +125,35 @@ def toggle_error():
 # ========== ENDPOINTS ARRÊT D'URGENCE ==========
 
 @app.post("/emergency-stop")
-def emergency_stop():
+def emergency_stop_button(payload: EmergencyStopButtonPayload):
     """
-    Toggle l'arrêt d'urgence.
-    Premier appel: déclenche l'e-stop
-    Deuxième appel: réinitialise l'e-stop
+    Gère le bouton d'arrêt d'urgence à crantage.
+    
+    button_pressed = true : le bouton est enfoncé → active l'e-stop
+    button_pressed = false: le bouton est relâché → permet la quittance
+    
+    WORKFLOW:
+    1. Appuyer sur E-stop (button_pressed=true) → machine s'arrête
+    2. Relâcher le bouton (button_pressed=false) → e-stop reste actif
+    3. Appuyer sur Acknowledge → e-stop se désactive
     """
-    plc.trigger_emergency_stop()
+    plc.set_emergency_stop_button(payload.button_pressed)
     state = plc.get_state()
     notify_webhook()
     return state
 
 
 @app.post("/emergency-stop-acknowledge")
-def acknowledge_emergency_stop(payload: SetAcknowledgePayload):
-    """Recognize l'arrêt d'urgence (hold-to-confirm)"""
-    plc.acknowledge_emergency_stop(payload.acknowledged)
+def emergency_stop_acknowledge(payload: EmergencyStopAcknowledgePayload):
+    """
+    Gère le bouton de quittance (acknowledge) de l'arrêt d'urgence.
+    
+    acknowledged = true : quittance activée → désactive l'e-stop (si bouton relâché)
+    acknowledged = false: quittance désactivée
+    
+    IMPORTANT: La quittance ne fonctionne que si le bouton est relâché!
+    """
+    plc.set_emergency_stop_acknowledge(payload.acknowledged)
     state = plc.get_state()
     notify_webhook()
     return state

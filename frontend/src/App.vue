@@ -8,6 +8,7 @@ const hasWarning = ref(false)
 const hasError = ref(false)
 const loading = ref(false)
 const backendAvailable = ref(true)
+const emergencyStopButtonPressed = ref(false)
 const emergencyStopActive = ref(false)
 const emergencyStopAcknowledged = ref(false)
 const motors = ref({
@@ -87,6 +88,7 @@ async function fetchState() {
       isOn.value = data.is_on
       hasWarning.value = data.has_warning
       hasError.value = data.has_error
+      emergencyStopButtonPressed.value = data.emergency_stop_button_pressed
       emergencyStopActive.value = data.emergency_stop_active
       emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
       backendAvailable.value = true
@@ -154,9 +156,14 @@ async function simulateError() {
 async function triggerEmergencyStop() {
   loading.value = true
   try {
-    const res = await fetch('/api/emergency-stop', { method: 'POST' })
+    const res = await fetch('/api/emergency-stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ button_pressed: !emergencyStopButtonPressed.value })
+    })
     if (res.ok) {
       const data = await res.json()
+      emergencyStopButtonPressed.value = data.emergency_stop_button_pressed
       emergencyStopActive.value = data.emergency_stop_active
       emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
       isOn.value = data.is_on
@@ -177,6 +184,7 @@ async function sendAcknowledge(acknowledged) {
     if (res.ok) {
       const data = await res.json()
       emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
+      emergencyStopActive.value = data.emergency_stop_active
     }
   } catch {
     backendAvailable.value = false
@@ -298,29 +306,34 @@ onUnmounted(() => {
       </div>
 
       <div class="emergency-stop-panel">
-        <div class="emergency-title" :class="{ active: emergencyStopActive }">
-          {{ emergencyStopActive ? 'EMERGENCY STOP ACTIVE' : 'Emergency Stop' }}
+        <div class="emergency-panel-header">
+          <div class="emergency-title" :class="{ active: emergencyStopActive }">
+            {{ emergencyStopActive ? '⚠ EMERGENCY STOP ACTIVE' : 'Emergency Stop System' }}
+          </div>
+          <div class="emergency-states">
+            <span v-if="emergencyStopButtonPressed" class="state-badge button-state">Button: PRESSED</span>
+            <span v-else class="state-badge button-state-released">Button: Released</span>
+          </div>
         </div>
+        <button 
+          class="emergency-button emergency-toggle" 
+          :class="{ pressed: emergencyStopButtonPressed }"
+          @click="triggerEmergencyStop" 
+          :disabled="loading"
+        >
+          {{ emergencyStopButtonPressed ? '🔴 PRESS AGAIN TO RELEASE' : '🔴 PRESS FOR E-STOP' }}
+        </button>
         <button 
           class="emergency-button emergency-acknowledge" 
           :class="{ acknowledged: emergencyStopAcknowledged }"
           @mousedown="onAcknowledgeMouseDown"
           @mouseup="onAcknowledgeMouseUp"
           @mouseleave="onAcknowledgeMouseUp"
-          :disabled="loading || !emergencyStopActive"
+          :disabled="loading || emergencyStopButtonPressed || !emergencyStopActive"
         >
-          {{ emergencyStopAcknowledged ? 'HOLD ✓' : 'HOLD TO ACKNOWLEDGE' }}
+          {{ emergencyStopAcknowledged ? '✓ HELD - RESETTING' : 'HOLD TO ACKNOWLEDGE' }}
         </button>
       </div>
-
-      <button 
-        @click="triggerEmergencyStop" 
-        class="emergency-button" 
-        :class="{ active: emergencyStopActive }"
-        :disabled="loading"
-      >
-        {{ emergencyStopActive ? '✓ STOP ACTIVE - Click to reset' : '⚠ EMERGENCY STOP' }}
-      </button>
 
       <div class="slider-stack" v-if="motors.motors?.[0] || motors.motors?.[1]">
         <MotorSlider
@@ -611,23 +624,54 @@ button.active {
   transition: all 0.3s ease;
 }
 
-.emergency-stop-panel.active {
+.emergency-stop-panel:has(.emergency-toggle.pressed) {
   background: rgba(255, 95, 109, 0.14);
   border-color: var(--err);
-  animation: pulse-emergency 1s infinite;
+}
+
+.emergency-panel-header {
+  display: grid;
+  gap: 6px;
 }
 
 .emergency-title {
   font-weight: 700;
   color: rgba(255, 95, 109, 0.6);
   text-align: center;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   letter-spacing: 0.05em;
   transition: all 0.3s ease;
 }
 
 .emergency-title.active {
   color: var(--err);
+  animation: blink-emergency 0.5s infinite;
+}
+
+.emergency-states {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.state-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.button-state {
+  background: rgba(255, 95, 109, 0.2);
+  color: var(--err);
+  border: 1px solid var(--err);
+}
+
+.button-state-released {
+  background: rgba(109, 255, 154, 0.15);
+  color: var(--ok);
+  border: 1px solid rgba(109, 255, 154, 0.5);
 }
 
 .emergency-button {
@@ -649,14 +693,19 @@ button.active {
   transform: scale(0.98);
 }
 
-.emergency-button.active {
+.emergency-button.pressed {
   border-color: var(--err);
   box-shadow: 0 0 16px rgba(255, 95, 109, 0.8);
+  animation: pulse-emergency 1s infinite;
 }
 
 .emergency-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.emergency-toggle {
+  background: linear-gradient(145deg, #8b2626, #5a1818);
 }
 
 .emergency-acknowledge {

@@ -30,9 +30,10 @@ class MachineState(BaseModel):
     has_warning: bool = False
     has_error: bool = False
     
-    # État d'arrêt d'urgence
-    emergency_stop_active: bool = False
-    emergency_stop_acknowledged: bool = False
+    # État d'arrêt d'urgence (3 niveaux distincts)
+    emergency_stop_button_pressed: bool = False  # Le bouton physique à crantage
+    emergency_stop_active: bool = False          # L'état verrouillé de la machine
+    emergency_stop_acknowledged: bool = False    # Le bouton acknowledge a été pressé
     
     # Moteurs
     motors: List[Motor] = Field(
@@ -53,6 +54,11 @@ class SetMotorSpeedPayload(BaseModel):
     motor_id: int = Field(ge=1, le=2, description="ID du moteur (1-2)")
 
 
-class SetAcknowledgePayload(BaseModel):
-    """Payload pour l'acknowledge de l'arrêt d'urgence"""
-    acknowledged: bool = False
+class EmergencyStopButtonPayload(BaseModel):
+    """Payload pour le bouton d'arrêt d'urgence à crantage"""
+    button_pressed: bool = Field(description="État du bouton: true=enfoncé, false=relâché")
+
+
+class EmergencyStopAcknowledgePayload(BaseModel):
+    """Payload pour le bouton de quittance (acknowledge)"""
+    acknowledged: bool = Field(description="true=appuyé sur quittance, false=relâché")

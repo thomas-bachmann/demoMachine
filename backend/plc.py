@@ -137,30 +137,41 @@ class MachineController:
 
     # ========== ARRÊT D'URGENCE (Safety Critical) ==========
 
-    def trigger_emergency_stop(self) -> bool:
+    def set_emergency_stop_button(self, button_pressed: bool) -> bool:
         """
-        Déclenche l'arrêt d'urgence.
-        Cette action est immédiate et prioritaire.
+        Gère le bouton d'arrêt d'urgence à crantage.
+        
+        Logique:
+        - Si bouton passe de False → True: activer l'e-stop de la machine
+        - L'e-stop reste actif même après relâchement du bouton
+        - Seul acknowledge peut le désactiver (si bouton est relâché)
         """
-        if not self.state.emergency_stop_active:
-            # Activation
+        was_pressed = self.state.emergency_stop_button_pressed
+        self.state.emergency_stop_button_pressed = button_pressed
+        
+        # Transition: bouton enfoncé → activer l'e-stop
+        if button_pressed and not was_pressed:
             self.state.emergency_stop_active = True
             self.state.emergency_stop_acknowledged = False
             # SÉCURITÉ: arrêt immédiat
             self.state.is_on = False
             self._reset_motors()
-        else:
-            # Désactivation (reset de l'e-stop)
-            self.state.emergency_stop_active = False
-            self.state.emergency_stop_acknowledged = False
-
+        
         return True
 
-    def acknowledge_emergency_stop(self, acknowledged: bool) -> bool:
+    def set_emergency_stop_acknowledge(self, acknowledged: bool) -> bool:
         """
-        Gère l'acknowledgement de l'arrêt d'urgence.
-        Cela reconnait l'activation de l'e-stop mais ne le désactive pas.
+        Gère le bouton de quittance (acknowledge).
+        
+        Logique:
+        - Ne fonctionne que si le bouton d'e-stop est RELÂCHÉ
+        - Quand acknowledged=true: désactive l'e-stop si bouton est relâché
+        - Quand acknowledged=false: rien
         """
-        if self.state.emergency_stop_active:
-            self.state.emergency_stop_acknowledged = acknowledged
+        self.state.emergency_stop_acknowledged = acknowledged
+        
+        # La quittance ne peut désactiver l'e-stop que si le bouton est relâché
+        if acknowledged and not self.state.emergency_stop_button_pressed:
+            self.state.emergency_stop_active = False
+        
         return True
