@@ -130,7 +130,6 @@ async function toggleOnOff() {
 }
 
 async function simulateWarning() {
-  if (!isOn.value) return
   loading.value = true
   try {
     const res = await fetch('/api/warning', { method: 'POST' })

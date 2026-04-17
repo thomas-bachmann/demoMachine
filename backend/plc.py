@@ -74,7 +74,7 @@ class MachineController:
         # Vérifier les conditions de sécurité
         if self.state.emergency_stop_active:
             return False  # E-stop actif
-        if self.state.has_error:
+        if self.state.error_active:
             return False  # Erreur présente
 
         # Demande acceptée
