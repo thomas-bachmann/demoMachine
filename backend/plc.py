@@ -119,9 +119,8 @@ class MachineController:
     # ========== DIAGNOSTIC ==========
 
     def set_warning(self, active: bool):
-        """Défini l'état d'alerte (simulation)"""
-        if self.state.is_on:
-            self.state.has_warning = active
+        """Défini l'état d'alerte (simulation) - peut être toggleé à tout moment"""
+        self.state.has_warning = active
 
     def set_error_condition(self, error_present: bool):
         """
