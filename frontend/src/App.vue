@@ -11,20 +11,22 @@ const backendAvailable = ref(true)
 const emergencyStopActive = ref(false)
 const emergencyStopAcknowledged = ref(false)
 const motors = ref({
-  motor_1: null,
-  motor_2: null
+  motors: [
+    { id: 1, current_speed: 0, target_speed: 0, tau_s: 1.5 },
+    { id: 2, current_speed: 0, target_speed: 0, tau_s: 3.0 }
+  ]
 })
 const sliderValues = ref({
-  motor_1: 0,
-  motor_2: 0
+  motor_0: 0,
+  motor_1: 0
 })
 const isDragging = ref({
-  motor_1: false,
-  motor_2: false
+  motor_0: false,
+  motor_1: false
 })
 const speedHistory = ref({
-  motor_1: [],
-  motor_2: []
+  motor_0: [],
+  motor_1: []
 })
 
 function getDefaultN8nUrl() {
@@ -41,8 +43,8 @@ const HISTORY_WINDOW_MS = 10 * 60 * 1000
 
 const motorCards = computed(() => {
   return [
-    { id: 'motor_1', title: 'Motor 1', motor: motors.value.motor_1 },
-    { id: 'motor_2', title: 'Motor 2', motor: motors.value.motor_2 }
+    { id: 'motor_0', title: 'Motor 1', motor: motors.value.motors?.[0] },
+    { id: 'motor_1', title: 'Motor 2', motor: motors.value.motors?.[1] }
   ]
 })
 
@@ -88,15 +90,14 @@ async function fetchState() {
       emergencyStopActive.value = data.emergency_stop_active
       emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
       backendAvailable.value = true
-      motors.value.motor_1 = data.motor_1 || data.motor_slide || {}
-      motors.value.motor_2 = data.motor_2 || {}
-      updateSpeedHistory('motor_1', motors.value.motor_1?.current_speed ?? 0)
-      updateSpeedHistory('motor_2', motors.value.motor_2?.current_speed ?? 0)
-      if (!isDragging.value.motor_1) {
-        sliderValues.value.motor_1 = motors.value.motor_1?.target_speed ?? 0
+      motors.value = data
+      updateSpeedHistory('motor_0', data.motors?.[0]?.current_speed ?? 0)
+      updateSpeedHistory('motor_1', data.motors?.[1]?.current_speed ?? 0)
+      if (!isDragging.value.motor_0) {
+        sliderValues.value.motor_0 = data.motors?.[0]?.target_speed ?? 0
       }
-      if (!isDragging.value.motor_2) {
-        sliderValues.value.motor_2 = motors.value.motor_2?.target_speed ?? 0
+      if (!isDragging.value.motor_1) {
+        sliderValues.value.motor_1 = data.motors?.[1]?.target_speed ?? 0
       }
     }
   } catch {
@@ -166,10 +167,13 @@ async function triggerEmergencyStop() {
   loading.value = false
 }
 
-async function acknowledgeEmergencyStop() {
-  loading.value = true
+async function sendAcknowledge(acknowledged) {
   try {
-    const res = await fetch('/api/emergency-stop-acknowledge', { method: 'POST' })
+    const res = await fetch('/api/emergency-stop-acknowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acknowledged })
+    })
     if (res.ok) {
       const data = await res.json()
       emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
@@ -177,12 +181,20 @@ async function acknowledgeEmergencyStop() {
   } catch {
     backendAvailable.value = false
   }
-  loading.value = false
+}
+
+function onAcknowledgeMouseDown() {
+  sendAcknowledge(true)
+}
+
+function onAcknowledgeMouseUp() {
+  sendAcknowledge(false)
 }
 
 async function commitSpeedTarget(motorId) {
   if (!motorId) return
-  const motorIdNum = parseInt(motorId.split('_')[1])  // "motor_1" -> 1
+  const motorIndex = parseInt(motorId.split('_')[1])  // "motor_0" -> 0, "motor_1" -> 1
+  const motorIdNum = motorIndex + 1  // ID moteur: 1 ou 2
   await fetch('/api/speed-target', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -260,7 +272,7 @@ onUnmounted(() => {
         </article>
       </section>
 
-      <section class="motors-grid" v-if="motors.motor_1 || motors.motor_2">
+      <section class="motors-grid" v-if="motors.motors?.[0] || motors.motors?.[1]">
         <MotorSummaryCard
           v-for="motorCard in motorCards"
           :key="motorCard.id"
@@ -285,26 +297,32 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <div v-if="emergencyStopActive" class="emergency-stop-panel">
-        <div class="emergency-title">EMERGENCY STOP ACTIVE</div>
+      <div class="emergency-stop-panel">
+        <div class="emergency-title" :class="{ active: emergencyStopActive }">
+          {{ emergencyStopActive ? 'EMERGENCY STOP ACTIVE' : 'Emergency Stop' }}
+        </div>
         <button 
           class="emergency-button emergency-acknowledge" 
-          @click="acknowledgeEmergencyStop"
-          :disabled="loading || emergencyStopAcknowledged"
+          :class="{ acknowledged: emergencyStopAcknowledged }"
+          @mousedown="onAcknowledgeMouseDown"
+          @mouseup="onAcknowledgeMouseUp"
+          @mouseleave="onAcknowledgeMouseUp"
+          :disabled="loading || !emergencyStopActive"
         >
-          {{ emergencyStopAcknowledged ? 'Acknowledged ✓' : 'Acknowledge' }}
+          {{ emergencyStopAcknowledged ? 'HOLD ✓' : 'HOLD TO ACKNOWLEDGE' }}
         </button>
       </div>
 
       <button 
         @click="triggerEmergencyStop" 
         class="emergency-button" 
+        :class="{ active: emergencyStopActive }"
         :disabled="loading"
       >
-        ⚠ EMERGENCY STOP
+        {{ emergencyStopActive ? '✓ STOP ACTIVE - Click to reset' : '⚠ EMERGENCY STOP' }}
       </button>
 
-      <div class="slider-stack" v-if="motors.motor_1 || motors.motor_2">
+      <div class="slider-stack" v-if="motors.motors?.[0] || motors.motors?.[1]">
         <MotorSlider
           v-for="motorCard in motorCards"
           :key="`slider-${motorCard.id}`"
@@ -584,51 +602,87 @@ button.active {
 }
 
 .emergency-stop-panel {
-  background: rgba(255, 95, 109, 0.14);
-  border: 2px solid var(--err);
+  background: rgba(255, 95, 109, 0.08);
+  border: 2px solid rgba(255, 95, 109, 0.3);
   border-radius: 10px;
   padding: 12px;
   display: grid;
   gap: 10px;
+  transition: all 0.3s ease;
+}
+
+.emergency-stop-panel.active {
+  background: rgba(255, 95, 109, 0.14);
+  border-color: var(--err);
   animation: pulse-emergency 1s infinite;
 }
 
 .emergency-title {
   font-weight: 700;
-  color: var(--err);
+  color: rgba(255, 95, 109, 0.6);
   text-align: center;
   font-size: 0.9rem;
   letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+}
+
+.emergency-title.active {
+  color: var(--err);
 }
 
 .emergency-button {
   background: linear-gradient(145deg, #8b2626, #5a1818);
-  border: 2px solid var(--err);
+  border: 2px solid rgba(255, 95, 109, 0.5);
   color: #ffb1b8;
   font-weight: 700;
   letter-spacing: 0.02em;
+  transition: all 0.2s ease;
 }
 
 .emergency-button:hover:not(:disabled) {
   background: linear-gradient(145deg, #a73030, #7a2020);
-  border-color: #ff9aa5;
+  border-color: var(--err);
   box-shadow: 0 0 12px rgba(255, 95, 109, 0.6);
 }
 
+.emergency-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.emergency-button.active {
+  border-color: var(--err);
+  box-shadow: 0 0 16px rgba(255, 95, 109, 0.8);
+}
+
 .emergency-button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .emergency-acknowledge {
-  background: linear-gradient(145deg, #4a6b4a, #2a4a2a);
-  border-color: var(--ok);
-  color: #a7e6ff;
+  background: linear-gradient(145deg, #3a4a3a, #1a2a1a);
+  border-color: rgba(109, 255, 154, 0.3);
+  color: rgba(255, 177, 184, 0.6);
+  user-select: none;
 }
 
 .emergency-acknowledge:hover:not(:disabled) {
+  background: linear-gradient(145deg, #4a5a4a, #2a3a2a);
+  border-color: rgba(109, 255, 154, 0.5);
+  color: #ffb1b8;
+}
+
+.emergency-acknowledge:active:not(:disabled) {
   background: linear-gradient(145deg, #5a7b5a, #3a5a3a);
-  border-color: #6dff9a;
+  border-color: var(--ok);
+  color: #a7e6ff;
+  box-shadow: 0 0 12px rgba(109, 255, 154, 0.8);
+}
+
+.emergency-acknowledge.acknowledged {
+  background: linear-gradient(145deg, #5a7b5a, #3a5a3a);
+  border-color: var(--ok);
+  color: #a7e6ff;
   box-shadow: 0 0 12px rgba(109, 255, 154, 0.6);
 }
 

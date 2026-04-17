@@ -1,0 +1,58 @@
+"""
+Modèles de données pour la machine
+"""
+from pydantic import BaseModel, Field
+from typing import List
+import math
+import time
+
+
+class Motor(BaseModel):
+    """Modèle d'un moteur"""
+    id: int = 0
+    current_speed: float = 0.0
+    target_speed: float = 0.0
+    tau_s: float = 1.5  # Constante de temps pour la simulation
+
+    def update_speed(self, is_running: bool, dt: float):
+        """Simule la mise à jour de la vitesse du moteur"""
+        desired = self.target_speed if is_running else 0.0
+        alpha = 1.0 - math.exp(-dt / max(self.tau_s, 1e-3))
+        self.current_speed += alpha * (desired - self.current_speed)
+
+
+class MachineState(BaseModel):
+    """État complet de la machine exposé par le PLC"""
+    # État d'alimentation
+    is_on: bool = False
+    
+    # États de diagnostic
+    has_warning: bool = False
+    has_error: bool = False
+    
+    # État d'arrêt d'urgence
+    emergency_stop_active: bool = False
+    emergency_stop_acknowledged: bool = False
+    
+    # Moteurs
+    motors: List[Motor] = Field(
+        default_factory=lambda: [
+            Motor(id=1, tau_s=1.5),
+            Motor(id=2, tau_s=3.0)
+        ]
+    )
+    
+    # Timing (interne)
+    last_update: float = Field(default_factory=time.monotonic)
+
+
+# Payloads d'entrée pour l'API
+class SetMotorSpeedPayload(BaseModel):
+    """Payload pour définir la vitesse d'un moteur"""
+    target_speed: float = Field(ge=0, le=100, description="Vitesse cible 0-100")
+    motor_id: int = Field(ge=1, le=2, description="ID du moteur (1-2)")
+
+
+class SetAcknowledgePayload(BaseModel):
+    """Payload pour l'acknowledge de l'arrêt d'urgence"""
+    acknowledged: bool = False
