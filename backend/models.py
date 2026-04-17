@@ -28,7 +28,11 @@ class MachineState(BaseModel):
     
     # États de diagnostic
     has_warning: bool = False
-    has_error: bool = False
+    
+    # État d'erreur (3 niveaux distincts - même logique que e-stop mais automatique)
+    error_condition: bool = False        # La condition d'erreur existe (capteur, etc.)
+    error_active: bool = False           # L'état verrouillé de la machine
+    error_acknowledged: bool = False     # Le bouton acknowledge a été pressé
     
     # État d'arrêt d'urgence (3 niveaux distincts)
     emergency_stop_button_pressed: bool = False  # Le bouton physique à crantage
@@ -61,4 +65,9 @@ class EmergencyStopButtonPayload(BaseModel):
 
 class EmergencyStopAcknowledgePayload(BaseModel):
     """Payload pour le bouton de quittance (acknowledge)"""
+    acknowledged: bool = Field(description="true=appuyé sur quittance, false=relâché")
+
+
+class ErrorAcknowledgePayload(BaseModel):
+    """Payload pour le bouton de quittance (acknowledge) de l'erreur"""
     acknowledged: bool = Field(description="true=appuyé sur quittance, false=relâché")

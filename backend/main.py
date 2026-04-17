@@ -12,6 +12,7 @@ from models import (
     SetMotorSpeedPayload,
     EmergencyStopButtonPayload,
     EmergencyStopAcknowledgePayload,
+    ErrorAcknowledgePayload,
 )
 
 # Configuration
@@ -112,11 +113,25 @@ def toggle_warning():
 
 @app.post("/error")
 def toggle_error():
-    """Toggle l'erreur (simulation)"""
+    """Toggle la condition d'erreur (simulation)"""
     # Récupérer l'état actuel
     current_state = plc.state
-    # Toggle
-    plc.set_error(not current_state.has_error)
+    # Toggle la condition d'erreur
+    plc.set_error_condition(not current_state.error_condition)
+    state = plc.get_state()
+    notify_webhook()
+    return state
+
+
+@app.post("/error-acknowledge")
+def error_acknowledge(payload: ErrorAcknowledgePayload):
+    """
+    Gère le bouton de quittance (acknowledge) de l'erreur.
+    
+    acknowledged = true : quittance activée → désactive l'erreur
+    acknowledged = false: quittance désactivée
+    """
+    plc.set_error_acknowledge(payload.acknowledged)
     state = plc.get_state()
     notify_webhook()
     return state

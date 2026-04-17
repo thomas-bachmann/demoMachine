@@ -5,7 +5,9 @@ import MotorSummaryCard from './components/MotorSummaryCard.vue'
 
 const isOn = ref(false)
 const hasWarning = ref(false)
-const hasError = ref(false)
+const errorCondition = ref(false)
+const errorActive = ref(false)
+const errorAcknowledged = ref(false)
 const loading = ref(false)
 const backendAvailable = ref(true)
 const emergencyStopButtonPressed = ref(false)
@@ -87,7 +89,9 @@ async function fetchState() {
       const data = await res.json()
       isOn.value = data.is_on
       hasWarning.value = data.has_warning
-      hasError.value = data.has_error
+      errorCondition.value = data.error_condition
+      errorActive.value = data.error_active
+      errorAcknowledged.value = data.error_acknowledged
       emergencyStopButtonPressed.value = data.emergency_stop_button_pressed
       emergencyStopActive.value = data.emergency_stop_active
       emergencyStopAcknowledged.value = data.emergency_stop_acknowledged
@@ -139,13 +143,32 @@ async function simulateWarning() {
 }
 
 async function simulateError() {
-  if (!isOn.value) return
   loading.value = true
   try {
     const res = await fetch('/api/error', { method: 'POST' })
     if (res.ok) {
       const data = await res.json()
-      hasError.value = data.has_error
+      errorCondition.value = data.error_condition
+      errorActive.value = data.error_active
+    }
+  } catch {
+    backendAvailable.value = false
+  }
+  loading.value = false
+}
+
+async function sendErrorAcknowledge(acknowledged) {
+  loading.value = true
+  try {
+    const res = await fetch('/api/error-acknowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ acknowledged })
+    })
+    if (res.ok) {
+      const data = await res.json()
+      errorActive.value = data.error_active
+      errorAcknowledged.value = data.error_acknowledged
     }
   } catch {
     backendAvailable.value = false
@@ -197,6 +220,14 @@ function onAcknowledgeMouseDown() {
 
 function onAcknowledgeMouseUp() {
   sendAcknowledge(false)
+}
+
+function onErrorAcknowledgeMouseDown() {
+  sendErrorAcknowledge(true)
+}
+
+function onErrorAcknowledgeMouseUp() {
+  sendErrorAcknowledge(false)
 }
 
 async function commitSpeedTarget(motorId) {
@@ -269,7 +300,7 @@ onUnmounted(() => {
               <span>Warning</span>
             </div>
             <div class="led-group">
-              <div class="led" :class="{ error: hasError }"></div>
+              <div class="led" :class="{ error: errorActive }"></div>
               <span>Error</span>
             </div>
             <div class="led-group">
@@ -294,13 +325,13 @@ onUnmounted(() => {
     <aside class="right-rail">
       <div class="rail-title">Machine control</div>
       <div class="buttons">
-        <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || hasError">
+        <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || errorActive">
           {{ isOn ? 'Power Off' : 'Power On' }}
         </button>
-        <button @click="simulateWarning" :disabled="loading || emergencyStopActive">
+        <button @click="simulateWarning" :disabled="loading || emergencyStopActive || errorActive">
           Simulate Warning
         </button>
-        <button @click="simulateError" :disabled="loading || emergencyStopActive">
+        <button @click="simulateError" :disabled="loading || emergencyStopActive || errorActive">
           Simulate Error
         </button>
       </div>
@@ -332,6 +363,28 @@ onUnmounted(() => {
           :disabled="loading || emergencyStopButtonPressed || !emergencyStopActive"
         >
           {{ emergencyStopAcknowledged ? '✓ HELD - RESETTING' : 'HOLD TO ACKNOWLEDGE' }}
+        </button>
+      </div>
+
+      <div class="emergency-stop-panel" v-if="errorActive">
+        <div class="emergency-panel-header">
+          <div class="emergency-title" :class="{ active: errorActive }">
+            {{ errorActive ? '⚠ ERROR ACTIVE' : 'Error System' }}
+          </div>
+          <div class="emergency-states">
+            <span v-if="errorCondition" class="state-badge button-state">Condition: PRESENT</span>
+            <span v-else class="state-badge button-state-released">Condition: Cleared</span>
+          </div>
+        </div>
+        <button 
+          class="emergency-button emergency-acknowledge" 
+          :class="{ acknowledged: errorAcknowledged }"
+          @mousedown="onErrorAcknowledgeMouseDown"
+          @mouseup="onErrorAcknowledgeMouseUp"
+          @mouseleave="onErrorAcknowledgeMouseUp"
+          :disabled="loading || !errorActive"
+        >
+          {{ errorAcknowledged ? '✓ HELD - RESETTING' : 'HOLD TO ACKNOWLEDGE ERROR' }}
         </button>
       </div>
 

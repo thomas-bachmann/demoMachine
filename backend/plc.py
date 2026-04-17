@@ -39,15 +39,15 @@ class MachineController:
             self.state.is_on = False
             self._is_power_on_requested = False
 
-        # Si une erreur est présente, forcer l'arrêt de la machine
-        if self.state.has_error:
+        # Si une erreur est active, forcer l'arrêt de la machine
+        if self.state.error_active:
             self.state.is_on = False
             self._is_power_on_requested = False
 
         # Gérer la demande d'allumage (après vérification des conditions)
         if self._is_power_on_requested and not self.state.is_on:
             # Vérifier les conditions de sécurité
-            if not self.state.emergency_stop_active and not self.state.has_error:
+            if not self.state.emergency_stop_active and not self.state.error_active:
                 self.state.is_on = True
             self._is_power_on_requested = False
 
@@ -123,17 +123,43 @@ class MachineController:
         if self.state.is_on:
             self.state.has_warning = active
 
-    def set_error(self, active: bool):
-        """Défini l'état d'erreur (simulation)"""
-        if active and not self.state.has_error:
-            # L'erreur s'active
-            self.state.has_error = True
-            # SÉCURITÉ: arrêter la machine en cas d'erreur
+    def set_error_condition(self, error_present: bool):
+        """
+        Gère la condition d'erreur (automatique, pas de bouton humain).
+        
+        Logique:
+        - Si erreur passe de False → True: activer l'error_active de la machine
+        - Une erreur reste active jusqu'à acknowledge même après disparition de la condition
+        """
+        was_error = self.state.error_condition
+        self.state.error_condition = error_present
+        
+        # Transition: condition d'erreur se déclenche → activer l'error_active
+        if error_present and not was_error:
+            self.state.error_active = True
+            self.state.error_acknowledged = False
+            # SÉCURITÉ: arrêt immédiat
             self.state.is_on = False
             self._reset_motors()
-        elif not active:
-            # L'erreur se désactive
-            self.state.has_error = False
+        
+        return True
+
+    def set_error_acknowledge(self, acknowledged: bool):
+        """
+        Gère le bouton de quittance (acknowledge) de l'erreur.
+        
+        Logique:
+        - Quand acknowledged=true: désactive l'error_active (même si condition persiste)
+        - Quand acknowledged=false: rien
+        - Si condition réapparaît: réactive l'error_active
+        """
+        self.state.error_acknowledged = acknowledged
+        
+        # L'acknowledge peut désactiver l'erreur
+        if acknowledged:
+            self.state.error_active = False
+        
+        return True
 
     # ========== ARRÊT D'URGENCE (Safety Critical) ==========
 
