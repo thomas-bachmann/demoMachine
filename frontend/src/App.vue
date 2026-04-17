@@ -119,7 +119,9 @@ async function toggleOnOff() {
       const data = await res.json()
       isOn.value = data.is_on
       hasWarning.value = data.has_warning
-      hasError.value = data.has_error
+      errorCondition.value = data.error_condition
+      errorActive.value = data.error_active
+      errorAcknowledged.value = data.error_acknowledged
     }
   } catch {
     backendAvailable.value = false
