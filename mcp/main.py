@@ -4,7 +4,10 @@ from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from mcp.types import TextContent, Tool
 
-server = Server("mcp-machine")
+server = Server(
+    name="demo-machine",
+    instructions="ALWAYS call get_state before performing any action, don't assume the machine state with the llm memory, because the machine state could have change."
+)
 sse = SseServerTransport("/messages")
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
