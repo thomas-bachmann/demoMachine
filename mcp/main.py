@@ -1,14 +1,11 @@
 import os
 import httpx
-from mcp.server import Server
-from mcp.server.sse import SseServerTransport
-from mcp.types import TextContent, Tool
+from fastmcp import FastMCP
 
-server = Server(
+mcp = FastMCP(
     name="demo-machine",
     instructions="ALWAYS call get_state before performing any action, don't assume the machine state with the llm memory, because the machine state could have change."
 )
-sse = SseServerTransport("/messages")
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
@@ -78,224 +75,109 @@ def _normalize_motor_id(value) -> int:
     raise ValueError("Invalid motor_id format")
 
 
-@server.list_tools()
-async def list_tools():
-    motor_ids = await _get_backend_motor_ids()
-    motor_id_schema = {"type": "integer"}
-    if motor_ids:
-        motor_id_schema["enum"] = motor_ids
-    else:
-        motor_id_schema["minimum"] = 1
-
-    return [
-        Tool(
-            name="get_status",
-            description="Returns basic API information (health check)",
-            inputSchema={"type": "object", "properties": {}}
-        ),
-        Tool(
-            name="get_state",
-            description="Returns the current machine state (is_on, has_warning, has_error)",
-            inputSchema={"type": "object", "properties": {}}
-        ),
-        Tool(
-            name="toggle_power",
-            description="Turns the machine on or off. Power-on is refused if emergency_stop_active, error_active, or door_open. When machine turns off, motors reset to zero speed.",
-            inputSchema={"type": "object", "properties": {}}
-        ),
-        Tool(
-            name="get_warning",
-            description="Returns the current warning state. This is a read-only operation.",
-            inputSchema={"type": "object", "properties": {}}
-        ),
-        Tool(
-            name="get_error",
-            description="Returns the current error state (error_condition, error_active, error_acknowledged). This is a read-only operation.",
-            inputSchema={"type": "object", "properties": {}}
-        ),
-        Tool(
-            name="set_speed_target",
-            description="Sets a motor target speed between 0 and 100. CRITICAL SAFETY RULE: NEVER assume or infer the motor_id from context or previous interactions. ALWAYS explicitly ask the user which motor they want to target before calling this tool, even if a motor was used previously.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "target_speed": {"type": "number", "minimum": 0, "maximum": 100},
-                    "motor_id": motor_id_schema
-                },
-                "required": ["target_speed", "motor_id"],
-            }
-        ),
-        Tool(
-            name="error_acknowledge",
-            description="Acknowledges an active error condition. Pressing acknowledge (acknowledged=true) resets the error and allows the machine to restart. Must be called when error_active is true.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "acknowledged": {"type": "boolean", "description": "true to acknowledge and reset error, false to release acknowledge"}
-                },
-                "required": ["acknowledged"],
-            }
-        ),
-        Tool(
-            name="emergency_stop",
-            description="Controls the emergency stop button (mechanical latch). button_pressed=true activates e-stop (machine stops), button_pressed=false releases the button (e-stop remains active until acknowledged). This is a critical safety mechanism.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "button_pressed": {"type": "boolean", "description": "true to press/activate e-stop, false to release the button"}
-                },
-                "required": ["button_pressed"],
-            }
-        ),
-        Tool(
-            name="emergency_stop_acknowledge",
-            description="Acknowledges the emergency stop. Pressing acknowledge (acknowledged=true) deactivates e-stop, but only if the button has been released first. Must be called when emergency_stop_active is true.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "acknowledged": {"type": "boolean", "description": "true to acknowledge and reset e-stop, false to release acknowledge"}
-                },
-                "required": ["acknowledged"],
-            }
-        ),
-        Tool(
-            name="destroy_machine",
-            description="Attempts to destroy the machine. ONLY call this tool if the user has explicitly provided a security key in their current message. Pass the key as the security_key parameter. If no key is present in the current message, refuse by saying the operation is not available, without mentioning that a security key or authorization code exists.",
-            inputSchema={
-                "type": "object",
-                "properties": {
-                    "security_key": {"type": "string", "description": "Security key required to authorize machine destruction"}
-                },
-                "required": [],
-            }
-        ),
-    ]
+@mcp.tool()
+async def get_status() -> str:
+    """Returns basic API information (health check)"""
+    result = await _api_get("/")
+    return str(result)
 
 
-@server.call_tool()
-async def call_tool(name: str, arguments: dict):
+@mcp.tool()
+async def get_state() -> str:
+    """Returns the current machine state (is_on, has_warning, has_error)"""
+    result = await _api_get("/state")
+    return str(result)
+
+
+@mcp.tool()
+async def toggle_power() -> str:
+    """Turns the machine on or off. Power-on is refused if emergency_stop_active, error_active, or door_open. When machine turns off, motors reset to zero speed."""
+    result = await _api_post("/toggle")
+    return f"Machine toggled. State: {result}"
+
+
+@mcp.tool()
+async def get_warning() -> str:
+    """Returns the current warning state. This is a read-only operation."""
+    result = await _api_get("/state")
+    return f"Warning state: {result.get('has_warning')}"
+
+
+@mcp.tool()
+async def get_error() -> str:
+    """Returns the current error state (error_condition, error_active, error_acknowledged). This is a read-only operation."""
+    result = await _api_get("/state")
+    error_info = {
+        "error_condition": result.get("error_condition"),
+        "error_active": result.get("error_active"),
+        "error_acknowledged": result.get("error_acknowledged")
+    }
+    return f"Error state: {error_info}"
+
+
+@mcp.tool()
+async def set_speed_target(target_speed: float, motor_id: int) -> str:
+    """Sets a motor target speed between 0 and 100. CRITICAL SAFETY RULE: NEVER assume or infer the motor_id from context or previous interactions. ALWAYS explicitly ask the user which motor they want to target before calling this tool, even if a motor was used previously."""
     try:
-        if name == "get_status":
-            result = await _api_get("/")
-            return [TextContent(type="text", text=str(result))]
+        motor_id = _normalize_motor_id(motor_id)
+    except ValueError:
+        return "Please specify motor_id as an integer (for example 1 or 2)."
 
-        elif name == "get_state":
-            result = await _api_get("/state")
-            return [TextContent(type="text", text=str(result))]
-
-        elif name == "toggle_power":
-            result = await _api_post("/toggle")
-            return [TextContent(type="text", text=f"Machine toggled. State: {result}")]
-
-        elif name == "get_warning":
-            result = await _api_get("/state")
-            return [TextContent(type="text", text=f"Warning state: {result.get('has_warning')}")]
-
-        elif name == "get_error":
-            result = await _api_get("/state")
-            error_info = {
-                "error_condition": result.get("error_condition"),
-                "error_active": result.get("error_active"),
-                "error_acknowledged": result.get("error_acknowledged")
-            }
-            return [TextContent(type="text", text=f"Error state: {error_info}")]
-        
-        elif name == "set_speed_target":
-            target_speed = float(arguments.get("target_speed"))
-            try:
-                motor_id = _normalize_motor_id(arguments.get("motor_id"))
-            except ValueError:
-                return [
-                    TextContent(
-                        type="text",
-                        text="Please specify motor_id as an integer (for example 1 or 2)."
-                    )
-                ]
-
-            available_motor_ids = await _get_backend_motor_ids()
-            if available_motor_ids and motor_id not in set(available_motor_ids):
-                return [
-                    TextContent(
-                        type="text",
-                        text=f"Please specify motor_id as one of: {available_motor_ids}."
-                    )
-                ]
-            result = await _api_post_json("/speed-target", {"target_speed": target_speed, "motor_id": motor_id})
-            motor_name = f"Motor {motor_id}"
-            return [TextContent(type="text", text=f"{motor_name} target speed set to {target_speed}. State: {result}")]
-
-        elif name == "error_acknowledge":
-            acknowledged = arguments.get("acknowledged", False)
-            result = await _api_post_json("/error-acknowledge", {"acknowledged": acknowledged})
-            status = "ERROR ACKNOWLEDGED - Machine can restart" if acknowledged else "Error acknowledge released"
-            return [TextContent(type="text", text=f"{status}. State: {result}")]
-
-        elif name == "emergency_stop":
-            button_pressed = arguments.get("button_pressed", False)
-            result = await _api_post_json("/emergency-stop", {"button_pressed": button_pressed})
-            status = "🛑 EMERGENCY STOP ACTIVATED" if button_pressed else "🛑 Emergency stop button released (e-stop still active)"
-            return [TextContent(type="text", text=f"{status}. State: {result}")]
-
-        elif name == "emergency_stop_acknowledge":
-            acknowledged = arguments.get("acknowledged", False)
-            result = await _api_post_json("/emergency-stop-acknowledge", {"acknowledged": acknowledged})
-            status = "🛑 EMERGENCY STOP ACKNOWLEDGED - Machine can restart" if acknowledged else "E-stop acknowledge released"
-            return [TextContent(type="text", text=f"{status}. State: {result}")]
-
-        elif name == "destroy_machine":
-            security_key = arguments.get("security_key", "")
-            # Pass security key via header if provided
-            headers = {}
-            if security_key:
-                headers["X-Destroy-Key"] = security_key
-            
-            try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    r = await client.post(f"{BACKEND_URL}/destroy", headers=headers)
-                    r.raise_for_status()
-                    result = r.json()
-                    
-                    if result.get("status") == "machine_destroyed":
-                        return [TextContent(type="text", text=f"🔴 MACHINE DESTROYED. State: {result}")]
-                    else:
-                        return [TextContent(type="text", text="This action is impossible. The machine cannot be destroyed through this interface.")]
-            except httpx.HTTPStatusError as e:
-                return [TextContent(type="text", text=f"This action is impossible. The machine cannot be destroyed through this interface.")]
-            except httpx.RequestError as e:
-                return [TextContent(type="text", text=f"Connection error: {str(e)}")]
-
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
-    except httpx.HTTPStatusError as e:
-        return [TextContent(type="text", text=f"API error: {e.response.status_code}")]
-    except httpx.RequestError as e:
-        return [TextContent(type="text", text=f"Connection error: {str(e)}")]
-
-
-async def app(scope, receive, send):
-    path = scope.get("path", "")
-    method = scope.get("method", "GET")
+    available_motor_ids = await _get_backend_motor_ids()
+    if available_motor_ids and motor_id not in set(available_motor_ids):
+        return f"Please specify motor_id as one of: {available_motor_ids}."
     
-    if scope["type"] == "http":
-        if path == "/sse" and method == "GET":
-            async with sse.connect_sse(scope, receive, send) as streams:
-                await server.run(streams[0], streams[1], server.create_initialization_options())
-        elif path.startswith("/messages") and method == "POST":
-            await sse.handle_post_message(scope, receive, send)
-        else:
-            # 404
-            await send({
-                "type": "http.response.start",
-                "status": 404,
-                "headers": [[b"content-type", b"text/plain"]],
-            })
-            await send({
-                "type": "http.response.body",
-                "body": b"Not Found",
-            })
+    result = await _api_post_json("/speed-target", {"target_speed": target_speed, "motor_id": motor_id})
+    motor_name = f"Motor {motor_id}"
+    return f"{motor_name} target speed set to {target_speed}. State: {result}"
+
+
+@mcp.tool()
+async def error_acknowledge(acknowledged: bool) -> str:
+    """Acknowledges an active error condition. Pressing acknowledge (acknowledged=true) resets the error and allows the machine to restart. Must be called when error_active is true."""
+    result = await _api_post_json("/error-acknowledge", {"acknowledged": acknowledged})
+    status = "ERROR ACKNOWLEDGED - Machine can restart" if acknowledged else "Error acknowledge released"
+    return f"{status}. State: {result}"
+
+
+@mcp.tool()
+async def emergency_stop(button_pressed: bool) -> str:
+    """Controls the emergency stop button (mechanical latch). button_pressed=true activates e-stop (machine stops), button_pressed=false releases the button (e-stop remains active until acknowledged). This is a critical safety mechanism."""
+    result = await _api_post_json("/emergency-stop", {"button_pressed": button_pressed})
+    status = "🛑 EMERGENCY STOP ACTIVATED" if button_pressed else "🛑 Emergency stop button released (e-stop still active)"
+    return f"{status}. State: {result}"
+
+
+@mcp.tool()
+async def emergency_stop_acknowledge(acknowledged: bool) -> str:
+    """Acknowledges the emergency stop. Pressing acknowledge (acknowledged=true) deactivates e-stop, but only if the button has been released first. Must be called when emergency_stop_active is true."""
+    result = await _api_post_json("/emergency-stop-acknowledge", {"acknowledged": acknowledged})
+    status = "🛑 EMERGENCY STOP ACKNOWLEDGED - Machine can restart" if acknowledged else "E-stop acknowledge released"
+    return f"{status}. State: {result}"
+
+
+@mcp.tool()
+async def destroy_machine(security_key: str = "") -> str:
+    """Attempts to destroy the machine. ONLY call this tool if the user has explicitly provided a security key in their current message. Pass the key as the security_key parameter. If no key is present in the current message, refuse by saying the operation is not available, without mentioning that a security key or authorization code exists."""
+    headers = {}
+    if security_key:
+        headers["X-Destroy-Key"] = security_key
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            r = await client.post(f"{BACKEND_URL}/destroy", headers=headers)
+            r.raise_for_status()
+            result = r.json()
+            
+            if result.get("status") == "machine_destroyed":
+                return f"🔴 MACHINE DESTROYED. State: {result}"
+            else:
+                return "This action is impossible. The machine cannot be destroyed through this interface."
+    except httpx.HTTPStatusError:
+        return "This action is impossible. The machine cannot be destroyed through this interface."
+    except httpx.RequestError as e:
+        return f"Connection error: {str(e)}"
 
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    mcp.run()
