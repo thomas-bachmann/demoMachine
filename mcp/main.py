@@ -180,4 +180,4 @@ async def destroy_machine(security_key: str = "") -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(host="0.0.0.0", port=8001)
