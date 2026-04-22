@@ -180,4 +180,5 @@ async def destroy_machine(security_key: str = "") -> str:
 
 
 if __name__ == "__main__":
-    mcp.run(host="0.0.0.0", port=8001)
+    import uvicorn
+    uvicorn.run(mcp.app, host="0.0.0.0", port=8001)
