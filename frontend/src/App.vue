@@ -5,6 +5,7 @@ import MotorSummaryCard from './components/MotorSummaryCard.vue'
 
 const isOn = ref(false)
 const hasWarning = ref(false)
+const doorOpen = ref(false)
 const errorCondition = ref(false)
 const errorActive = ref(false)
 const errorAcknowledged = ref(false)
@@ -89,6 +90,7 @@ async function fetchState() {
       const data = await res.json()
       isOn.value = data.is_on
       hasWarning.value = data.has_warning
+      doorOpen.value = data.door_open
       errorCondition.value = data.error_condition
       errorActive.value = data.error_active
       errorAcknowledged.value = data.error_acknowledged
@@ -136,6 +138,20 @@ async function simulateWarning() {
     if (res.ok) {
       const data = await res.json()
       hasWarning.value = data.has_warning
+    }
+  } catch {
+    backendAvailable.value = false
+  }
+  loading.value = false
+}
+
+async function simulateDoor() {
+  loading.value = true
+  try {
+    const res = await fetch('/api/door', { method: 'POST' })
+    if (res.ok) {
+      const data = await res.json()
+      doorOpen.value = data.door_open
     }
   } catch {
     backendAvailable.value = false
@@ -308,6 +324,10 @@ onUnmounted(() => {
               <div class="led" :class="{ emergency: emergencyStopActive }"></div>
               <span>E-Stop</span>
             </div>
+            <div class="led-group">
+              <div class="led" :class="{ error: doorOpen }"></div>
+              <span>Door</span>
+            </div>
           </div>
         </article>
       </section>
@@ -326,7 +346,7 @@ onUnmounted(() => {
     <aside class="right-rail">
       <div class="rail-title">Machine control</div>
       <div class="buttons">
-        <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || errorActive">
+        <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || errorActive || doorOpen">
           {{ isOn ? 'Power Off' : 'Power On' }}
         </button>
         <button @click="simulateWarning" :disabled="loading || emergencyStopActive">
@@ -334,6 +354,9 @@ onUnmounted(() => {
         </button>
         <button @click="simulateError" :disabled="loading || emergencyStopActive">
           Simulate Error
+        </button>
+        <button @click="simulateDoor" :disabled="loading || emergencyStopActive">
+          {{ doorOpen ? '🚪 Close Door' : '🚪 Open Door' }}
         </button>
       </div>
 

@@ -44,6 +44,11 @@ class MachineController:
             self.state.is_on = False
             self._is_power_on_requested = False
 
+        # Si la porte est ouverte, forcer l'arrêt de la machine
+        if self.state.door_open:
+            self.state.is_on = False
+            self._is_power_on_requested = False
+
         # Gérer la demande d'allumage (après vérification des conditions)
         if self._is_power_on_requested and not self.state.is_on:
             # Vérifier les conditions de sécurité
@@ -76,6 +81,8 @@ class MachineController:
             return False  # E-stop actif
         if self.state.error_active:
             return False  # Erreur présente
+        if self.state.door_open:
+            return False  # Porte ouverte
 
         # Demande acceptée
         self._is_power_on_requested = True
@@ -121,6 +128,10 @@ class MachineController:
     def set_warning(self, active: bool):
         """Défini l'état d'alerte (simulation) - peut être toggleé à tout moment"""
         self.state.has_warning = active
+
+    def set_door(self, open: bool):
+        """Défini l'état de la porte (simulation)"""
+        self.state.door_open = open
 
     def set_error_condition(self, error_present: bool):
         """

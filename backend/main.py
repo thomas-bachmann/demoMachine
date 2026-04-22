@@ -111,6 +111,18 @@ def toggle_warning():
     return state
 
 
+@app.post("/door")
+def toggle_door():
+    """Toggle l'état de la porte (ouvert/fermé)"""
+    # Récupérer l'état actuel
+    current_state = plc.state
+    # Toggle
+    plc.set_door(not current_state.door_open)
+    state = plc.get_state()
+    notify_webhook()
+    return state
+
+
 @app.post("/error")
 def toggle_error():
     """Toggle la condition d'erreur (simulation)"""

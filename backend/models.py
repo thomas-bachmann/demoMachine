@@ -28,6 +28,7 @@ class MachineState(BaseModel):
     
     # États de diagnostic
     has_warning: bool = False
+    door_open: bool = False  # True = porte ouverte, False = porte fermée
     
     # État d'erreur (3 niveaux distincts - même logique que e-stop mais automatique)
     error_condition: bool = False        # La condition d'erreur existe (capteur, etc.)
