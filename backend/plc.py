@@ -148,15 +148,15 @@ class MachineController:
         Gère le bouton de quittance (acknowledge) de l'erreur.
         
         Logique:
-        - Quand acknowledged=true: désactive l'error_active (même si condition persiste)
+        - Quand acknowledged=true: désactive l'error_active ET réinitialise la condition
         - Quand acknowledged=false: rien
-        - Si condition réapparaît: réactive l'error_active
         """
         self.state.error_acknowledged = acknowledged
         
-        # L'acknowledge peut désactiver l'erreur
+        # L'acknowledge réinitialise complètement l'erreur
         if acknowledged:
             self.state.error_active = False
+            self.state.error_condition = False
         
         return True
 
