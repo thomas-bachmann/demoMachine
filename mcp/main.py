@@ -5,6 +5,7 @@ from utils import (
     api_post_json,
     get_backend_motor_ids,
     normalize_motor_id,
+    BACKEND_URL
 )
 import httpx
 
@@ -12,8 +13,6 @@ mcp = FastMCP(
     name="demo-machine",
     instructions="ALWAYS call get_state before performing any action, don't assume the machine state with the llm memory, because the machine state could have change."
 )
-
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
 
 @mcp.tool()
