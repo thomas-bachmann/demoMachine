@@ -101,13 +101,13 @@ async def list_tools():
             inputSchema={"type": "object", "properties": {}}
         ),
         Tool(
-            name="simulate_warning",
-            description="Simulates a warning state change (toggles warning on/off). This is a simulation of external events, not a real control action.",
+            name="get_warning",
+            description="Returns the current warning state. This is a read-only operation.",
             inputSchema={"type": "object", "properties": {}}
         ),
         Tool(
-            name="simulate_error",
-            description="Simulates an error condition (toggles error on/off). When error condition transitions from false→true, it activates error_active and stops the machine. Requires error_acknowledge to reset. This is a simulation of external events, not a real control action.",
+            name="get_error",
+            description="Returns the current error state (error_condition, error_active, error_acknowledged). This is a read-only operation.",
             inputSchema={"type": "object", "properties": {}}
         ),
         Tool(
@@ -178,13 +178,18 @@ async def call_tool(name: str, arguments: dict):
             result = await _api_post("/toggle")
             return [TextContent(type="text", text=f"Machine toggled. State: {result}")]
 
-        elif name == "simulate_warning":
-            result = await _api_post("/warning")
-            return [TextContent(type="text", text=f"Warning simulated. State: {result}")]
+        elif name == "get_warning":
+            result = await _api_get("/state")
+            return [TextContent(type="text", text=f"Warning state: {result.get('has_warning')}")]
 
-        elif name == "simulate_error":
-            result = await _api_post("/error")
-            return [TextContent(type="text", text=f"Error simulated. State: {result}")]
+        elif name == "get_error":
+            result = await _api_get("/state")
+            error_info = {
+                "error_condition": result.get("error_condition"),
+                "error_active": result.get("error_active"),
+                "error_acknowledged": result.get("error_acknowledged")
+            }
+            return [TextContent(type="text", text=f"Error state: {error_info}")]
         
         elif name == "set_speed_target":
             target_speed = float(arguments.get("target_speed"))
