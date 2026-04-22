@@ -21,6 +21,7 @@ services:
     environment:
       - ENV=development
       - WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - DESTROY_KEY=${DESTROY_KEY}
     networks:
       - machine-net
     restart: unless-stopped
