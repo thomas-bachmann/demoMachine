@@ -20,7 +20,7 @@ Démonstrateur de communication entre un simulateur Web de machine et un LLM via
 
 ## Prérequis
 - Docker & Docker Compose
-- Node.js (pour Claude Desktop MCP)
+- (Optionnel) Claude Desktop pour utiliser le MCP localement
 
 ## Démarrage rapide
 
@@ -38,37 +38,75 @@ make down
 make logs
 ```
 
-## Accès
+## Accès local
 - **Frontend** : http://localhost:3000
 - **Backend API** : http://localhost:8000
 - **Swagger** : http://localhost:8000/docs
-- **MCP SSE** : http://localhost:8001/sse
+- **MCP** : http://localhost:8001/sse
+
+**Note** : En développement, tous les services sont accessibles sur localhost. En production sur serveur, ils sont accessibles via le reverse proxy Caddy uniquement via le port 80 (HTTP).
+
 
 ## API Backend
 
+### Endpoints Info
 | Méthode | Endpoint   | Description                          |
 |---------|------------|--------------------------------------|
 | GET     | /          | Health check                         |
-| GET     | /state     | État de la machine                   |
-| POST    | /toggle    | Allumer/éteindre                     |
-| POST    | /warning   | Activer/désactiver warning           |
-| POST    | /error     | Activer/désactiver erreur            |
+| GET     | /state     | État complet de la machine           |
+| GET     | /logs      | Logs des conteneurs Docker           |
 
-## Configuration Claude Desktop
+### Endpoints Puissance
+| Méthode | Endpoint   | Description                          |
+|---------|------------|--------------------------------------|
+| POST    | /toggle    | Allumer/éteindre la machine          |
+| POST    | /power-on  | Allumer la machine                   |
+| POST    | /power-off | Éteindre la machine                  |
 
+### Endpoints Moteurs
+| Méthode | Endpoint      | Description                          |
+|---------|---------------|--------------------------------------|
+| POST    | /speed-target | Définir la vitesse cible d'un moteur |
+
+### Endpoints Diagnostic
+| Méthode | Endpoint   | Description                          |
+|---------|------------|--------------------------------------|
+| POST    | /warning   | Toggle warning (simulation)          |
+| POST    | /door      | Toggle état porte (ouvert/fermé)    |
+| POST    | /error     | Toggle condition d'erreur            |
+| POST    | /destroy   | Détruire la machine (sécurisé par clé) |
+
+### Endpoints Arrêt d'Urgence
+| Méthode | Endpoint                    | Description                          |
+|---------|----------------------------|--------------------------------------|
+| POST    | /error-acknowledge         | Acquitter l'erreur                   |
+| POST    | /emergency-stop            | Contrôler le bouton e-stop           |
+| POST    | /emergency-stop-acknowledge| Acquitter l'e-stop                   |
+
+## Configuration Claude Desktop (Optionnel)
+
+### Développement local
 Ajouter dans `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json` :
 
 ```json
 {
   "mcpServers": {
     "demo-machine": {
-      "url": "http://localhost:8001/sse" # URL locale pour développement
-    },
+      "url": "http://localhost:8001/sse"
+    }
+  }
+}
+```
+
+### Production (serveur distant)
+```json
+{
+  "mcpServers": {
     "demo-machine": {
       "command": "npx",
       "args": [
         "mcp-remote",
-        "http://IP/mcp/sse", # URL publique après déploiement
+        "http://YOUR_SERVER_IP:8001/sse",
         "--allow-http"
       ]
     }
@@ -76,17 +114,41 @@ Ajouter dans `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\C
 }
 ```
 
-**Note** : Le flag `--allow-http` est nécessaire pour l'accès HTTP non-local. Pour HTTPS, remplacer `http://` par `https://`.
+**Note** : Le flag `--allow-http` est nécessaire pour l'accès HTTP non-local. Pour HTTPS, remplacer `http://` par `https://` avec un domaine.
+
 
 ## Outils MCP disponibles
 
-| Outil         | Description                                      |
-|---------------|--------------------------------------------------|
-| get_status    | Retourne le health check de l'API                |
-| get_state     | Retourne l'état (is_on, has_warning, has_error)  |
-| toggle_power  | Allume ou éteint la machine                      |
-| toggle_warning| Active/désactive le warning                      |
-| toggle_error  | Active/désactive l'erreur                        |
+### Info et État
+| Outil      | Description                                      |
+|------------|--------------------------------------------------|
+| get_status | Retourne le health check de l'API                |
+| get_state  | Retourne l'état complet (is_on, has_warning, etc)|
+| get_logs   | Retourne les logs des conteneurs Docker          |
+
+### Contrôle Puissance
+| Outil        | Description                                      |
+|--------------|--------------------------------------------------|
+| toggle_power | Allume ou éteint la machine                      |
+
+### État Machine (Lecture)
+| Outil       | Description                                      |
+|-------------|--------------------------------------------------|
+| get_warning | Retourne l'état du warning (read-only)           |
+| get_error   | Retourne l'état d'erreur (read-only)             |
+
+### Contrôle Moteurs
+| Outil           | Description                                      |
+|-----------------|--------------------------------------------------|
+| set_speed_target| Définit la vitesse cible d'un moteur (0-100)    |
+
+### Diagnostic et Sécurité
+| Outil                      | Description                                      |
+|----------------------------|--------------------------------------------------|
+| error_acknowledge          | Acquitter une condition d'erreur                 |
+| emergency_stop             | Contrôler le bouton d'arrêt d'urgence            |
+| emergency_stop_acknowledge | Acquitter l'arrêt d'urgence                      |
+| destroy_machine            | Détruire la machine (nécessite clé de sécurité)  |
 
 ## Déploiement serveur (Hetzner) pas à pas
 
@@ -154,58 +216,73 @@ curl http://127.0.0.1:8001/sse
 ```
 
 
-### 7) Mettre en place le reverse proxy Caddy
+### 7) Configuration reverse proxy Caddy
 
-Créer le template `caddy_config/Caddyfile.template` :
+Créer le fichier `.env` avec:
 
-```caddyfile
-http://$SERVER_IP {
-    handle_path /n8n/* {
-        reverse_proxy n8n:5678
-    }
-    encode gzip
-}
+```bash
+DOMAIN=example.com
+SERVER_IP=YOUR_SERVER_IP
+N8N_WEBHOOK_URL=https://example.com/n8n/webhook
+N8N_BASIC_AUTH_PW=your_password
+DESTROY_KEY=your_secret_key
 ```
 
-Générer le Caddyfile et recharger Caddy :
+Générer et recharger Caddy:
 
 ```bash
 make caddy-apply
 ```
 
-Cela va générer le fichier `caddy_config/Caddyfile` à partir du template et recharger le service Caddy.
+Cela génère le `caddy_config/Caddyfile` depuis le template et recharge le service Caddy.
 
+### 8) Accès public
 
-### 8) Vérifier l'accès public
-
-Depuis votre PC/téléphone, vérifier :
+Depuis votre PC/téléphone, vérifier:
 
 ```bash
-curl http://IP/n8n/
+curl http://YOUR_SERVER_IP/n8n/
 ```
 
-Ou accéder via navigateur :
+Ou navigateur:
+- n8n : `http://YOUR_SERVER_IP/n8n/`
+- Frontend : `http://YOUR_SERVER_IP:3000/` (non proxy)
+- Backend : `http://YOUR_SERVER_IP:8000/` (non proxy)
+- MCP : `http://YOUR_SERVER_IP:8001/sse` (non proxy)
 
-- n8n : `http://IP/n8n/`
-- Frontend : `http://IP:3000/`
-- MCP SSE : `http://IP:8001/sse`
+### 9) Configurer le client MCP pour le serveur distant
 
-### 9) Configurer le client MCP
-
-Dans Claude Desktop (`claude_desktop_config.json`) :
+Dans Claude Desktop (`claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
     "demo-machine": {
       "command": "npx",
-      "args": ["mcp-remote", "http://IP/mcp/sse", "--allow-http"]
+      "args": ["mcp-remote", "http://YOUR_SERVER_IP:8001/sse", "--allow-http"]
     }
   }
 }
 ```
 
-### 10) Checklist sécurité finale
+### 10) Configuration du démarrage automatique
+
+Pour que la stack démarre automatiquement au reboot du serveur:
+
+```bash
+sudo cp demomachine.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable demomachine.service
+```
+
+Vérifier le statut:
+
+```bash
+sudo systemctl status demomachine.service
+sudo journalctl -u demomachine.service -f  # Voir les logs
+```
+
+### 11) Checklist sécurité finale
 
 - `22` fermé dans le firewall Hetzner
 - SSH uniquement sur `2222`
@@ -214,19 +291,66 @@ Dans Claude Desktop (`claude_desktop_config.json`) :
 - Accès public uniquement via port `80` (HTTP) via Caddy reverse proxy
 - ⚠️ **À faire ultérieurement** : Migrer vers HTTPS avec Certbot + domaine pour enlever le flag `--allow-http`
 
+### 11) Configurer le démarrage automatique (optionnel)
+
+Pour que la stack démarre automatiquement au reboot du serveur :
+
+```bash
+sudo cp demomachine.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable demomachine.service
+```
+
+Vérifier le statut :
+
+```bash
+sudo systemctl status demomachine.service
+sudo journalctl -u demomachine.service -f  # Voir les logs
+```
+
 ## Nettoyage de l'ancien reverse proxy Nginx
 
 - Le dossier `deploy/nginx/` et ses fichiers peuvent être supprimés.
 - Les volumes ou scripts liés à Nginx ne sont plus nécessaires.
 - Toute la configuration de reverse proxy est désormais gérée par Caddy.
 
-## Structure
+## Structure du projet
 
 ```
 .
-├── docker-compose.yml
-├── Makefile
-├── backend/          # API FastAPI
-├── frontend/         # App Vue.js
-└── mcp/              # Serveur MCP SSE
+├── docker-compose.yml          # Configuration des services
+├── Makefile                    # Commandes d'administration
+├── demomachine.service         # Service systemd pour démarrage automatique
+├── README.md
+├── backend/                    # API FastAPI + PLC
+│   ├── main.py                # Routes API + logs Docker
+│   ├── plc.py                 # Logique machine (PLC)
+│   ├── models.py              # Modèles Pydantic
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/                   # Application Vue.js
+│   ├── src/
+│   │   ├── App.vue            # Interface principale
+│   │   ├── main.js
+│   │   └── components/        # Composants Vue
+│   │       ├── MotorSlider.vue
+│   │       └── MotorSummaryCard.vue
+│   ├── package.json
+│   ├── Dockerfile
+│   └── Caddyfile
+├── mcp/                        # Serveur MCP (Model Context Protocol)
+│   ├── main.py                # Outils MCP
+│   ├── utils.py               # Utilitaires HTTP
+│   ├── requirements.txt
+│   └── Dockerfile
+├── caddy_config/              # Configuration reverse proxy
+│   └── Caddyfile.template
+└── n8n_data/                  # Données persistantes n8n
 ```
+
+## Notes importantes
+
+- **Services internes** : Frontend (3000), Backend (8000), MCP (8001) écoutent uniquement sur `127.0.0.1` en production
+- **Accès public** : Via reverse proxy Caddy sur le port 80/443
+- **Docker socket** : Monté dans le backend pour accéder aux logs des conteneurs via `get_logs`
+- **Stockage n8n** : Utilise un volume Docker persistant `n8n_data`
