@@ -1,0 +1,18 @@
+[Unit]
+Description=Demo Machine - Docker Compose Stack
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/demoMachine
+ExecStart=/usr/bin/make build
+RemainAfterExit=yes
+
+# Options de restart
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
