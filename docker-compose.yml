@@ -22,6 +22,8 @@ services:
       - ENV=development
       - WEBHOOK_URL=${N8N_WEBHOOK_URL}
       - DESTROY_KEY=${DESTROY_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - machine-net
     restart: unless-stopped
