@@ -117,6 +117,44 @@ async def destroy_machine(security_key: str = "") -> str:
         return "This action is impossible. The machine cannot be destroyed through this interface."
     except httpx.RequestError as e:
         return f"Connection error: {str(e)}"
+    
+@mcp.tool()
+async def get_logs(docker_name: str = "") -> str:
+    """Return the logs of the specified docker container. Read-only operation.
+    
+    Args:
+        docker_name: The name of the container (e.g., 'machine-backend', 'machine-frontend', 'machine-mcp', 'machine-n8n')
+                    If empty, returns a list of available containers.
+    
+    Returns:
+        The container logs or a list of available containers.
+    """
+    try:
+        result = await api_get(f"/logs?docker={docker_name}")
+        
+        # If error in response
+        if "error" in result:
+            return f"Error: {result['error']}"
+        
+        # If container name was specified, return logs
+        if "logs" in result:
+            return f"Logs for '{result['container']}' (status: {result['status']}):\n{result['logs']}"
+        
+        # If listing containers
+        if "containers" in result:
+            containers = result["containers"]
+            if not containers:
+                return "No containers found."
+            
+            container_list = "Available containers:\n"
+            for container in containers:
+                container_list += f"  - {container['name']} (status: {container['status']})\n"
+            return container_list
+        
+        return f"Unexpected response: {result}"
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 
 if __name__ == "__main__":

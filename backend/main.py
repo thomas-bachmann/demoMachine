@@ -2,10 +2,12 @@
 API Bus - Interface REST pour communiquer avec le PLC
 Expose les actions possibles au monde extérieur (Frontend, n8n, etc.)
 """
-from fastapi import FastAPI, Header
+from fastapi import FastAPI, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import httpx
+import docker
+from docker.errors import DockerException
 
 from plc import MachineController
 from models import (
@@ -42,6 +44,57 @@ def notify_webhook():
             httpx.post(WEBHOOK_URL, json=state.model_dump())
         except Exception as e:
             print(f"Erreur lors de l'appel du webhook n8n: {e}")
+
+
+def get_docker_logs(docker_name: str = "") -> dict:
+    """Récupère les logs des conteneurs Docker
+    
+    Args:
+        docker_name: Nom du conteneur (e.g., 'machine-backend', 'machine-frontend', 'machine-mcp', 'machine-n8n')
+                    Si vide, retourne la liste des conteneurs disponibles
+    
+    Returns:
+        Dict avec les logs ou liste des conteneurs
+    """
+    try:
+        client = docker.from_env()
+        
+        # Si pas de nom, lister les conteneurs disponibles
+        if not docker_name:
+            try:
+                containers = client.containers.list(all=True)
+                if not containers:
+                    return {"containers": [], "message": "No containers found"}
+                
+                container_list = []
+                for container in containers:
+                    container_list.append({
+                        "name": container.name,
+                        "status": container.status,
+                        "id": container.id[:12]
+                    })
+                return {"containers": container_list}
+            except Exception as e:
+                return {"error": f"Error listing containers: {str(e)}"}
+        
+        # Récupérer les logs du conteneur spécifié
+        try:
+            container = client.containers.get(docker_name)
+            logs = container.logs(stdout=True, stderr=True, tail=100).decode('utf-8')
+            return {
+                "container": docker_name,
+                "status": container.status,
+                "logs": logs
+            }
+        except docker.errors.NotFound:
+            return {"error": f"Container '{docker_name}' not found"}
+        except Exception as e:
+            return {"error": f"Error retrieving logs: {str(e)}"}
+    
+    except DockerException as e:
+        return {"error": f"Docker error: {str(e)}. Make sure Docker daemon is running and accessible."}
+    except Exception as e:
+        return {"error": f"Error: {str(e)}"}
 
 
 # ========== ENDPOINTS INFO ==========
@@ -206,3 +259,18 @@ def emergency_stop_acknowledge(payload: EmergencyStopAcknowledgePayload):
     state = plc.get_state()
     notify_webhook()
     return state
+
+
+# ========== ENDPOINTS LOGS ==========
+
+@app.get("/logs")
+def get_logs(docker: str = Query("", description="Docker container name")):
+    """Retourne les logs des conteneurs Docker.
+    
+    Query parameters:
+    - docker: Nom du conteneur (e.g., 'machine-backend', 'machine-frontend', 'machine-mcp', 'machine-n8n')
+              Si vide, retourne la liste des conteneurs disponibles
+    
+    Read-only operation
+    """
+    return get_docker_logs(docker)
