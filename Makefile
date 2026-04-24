@@ -13,7 +13,8 @@ stack-up:
 	$(COMPOSE) up -d
 
 stack-build:
-	$(COMPOSE) down || true
+	$(COMPOSE) down --remove-orphans -v || true
+	sleep 2
 	$(COMPOSE) up -d --build
 
 # Lance toute la stack + n8n + applique caddy host + vérifications
