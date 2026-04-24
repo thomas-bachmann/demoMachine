@@ -13,6 +13,7 @@ stack-up:
 	$(COMPOSE) up -d
 
 stack-build:
+	$(COMPOSE) down || true
 	$(COMPOSE) up -d --build
 
 # Lance toute la stack + n8n + applique caddy host + vérifications
