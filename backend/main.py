@@ -8,6 +8,7 @@ import os
 import httpx
 import docker
 from docker.errors import DockerException
+from threading import Thread
 
 from plc import MachineController
 from models import (
@@ -37,14 +38,21 @@ app.add_middleware(
 
 # ========== UTILITAIRES ==========
 
-def notify_webhook():
-    """Envoie l'état courant au webhook n8n si l'URL est définie."""
+def _send_webhook_background():
+    """Envoie le webhook en arrière-plan (thread séparé, non-bloquant)."""
     if WEBHOOK_URL:
         try:
             state = plc.get_state()
-            httpx.post(WEBHOOK_URL, json=state.model_dump())
+            # Timeout court pour éviter les hangs
+            httpx.post(WEBHOOK_URL, json=state.model_dump(), timeout=2.0)
         except Exception as e:
             print(f"Erreur lors de l'appel du webhook n8n: {e}")
+
+def notify_webhook():
+    """Lance l'envoi du webhook en arrière-plan (non-bloquant)."""
+    # Exécute le webhook dans un thread séparé pour ne pas bloquer
+    thread = Thread(target=_send_webhook_background, daemon=True)
+    thread.start()
 
 
 def get_docker_logs(docker_name: str = "") -> dict:
