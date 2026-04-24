@@ -5,7 +5,7 @@ from mcp.client.streamable_http import streamablehttp_client
 
 async def generate_llm_response(
     prompt: str,
-    model: str = "ollama/qwen2.5",
+    model: str = "claude-haiku-4-5-20251001",
     mcp_server_url: str | None = None
 ) -> str:
     messages = [{"role": "user", "content": prompt}]
