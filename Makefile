@@ -17,11 +17,11 @@ stack-build:
 	sleep 2
 	$(COMPOSE) up -d --build
 
-# Lance toute la stack + n8n + applique caddy host + vérifications
-up: stack-up n8n-up caddy-apply check
+# Lance toute la stack + n8n
+up: stack-up n8n-up
 
-# Build + relance + applique caddy host + vérifications
-build: stack-build n8n-up caddy-apply check
+# Build + relance (local development)
+build: stack-build n8n-up
 
 # Arrête tout
 down:
