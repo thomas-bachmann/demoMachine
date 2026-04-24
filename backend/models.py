@@ -72,3 +72,9 @@ class EmergencyStopAcknowledgePayload(BaseModel):
 class ErrorAcknowledgePayload(BaseModel):
     """Payload pour le bouton de quittance (acknowledge) de l'erreur"""
     acknowledged: bool = Field(description="true=appuyé sur quittance, false=relâché")
+
+
+class SetMotorTauPayload(BaseModel):
+    """Payload pour modifier le tau d'un moteur"""
+    motor_id: int = Field(ge=1, le=2, description="ID du moteur (1-2)")
+    tau_s: float = Field(ge=0.1, le=10.0, description="Constante de temps en secondes")

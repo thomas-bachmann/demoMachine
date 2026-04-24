@@ -118,6 +118,18 @@ class MachineController:
         motor.target_speed = target_speed
         return True
 
+    def set_motor_tau(self, motor_id: int, tau_s: float) -> bool:
+        """
+        Modifie la constante de temps (tau) d'un moteur.
+        Le tau contrôle la vitesse d'accélération/décélération du moteur.
+        """
+        if motor_id < 1 or motor_id > len(self.state.motors):
+            return False
+
+        motor = self.state.motors[motor_id - 1]
+        motor.tau_s = max(0.1, min(10.0, tau_s))  # Clamp entre 0.1 et 10
+        return True
+
     def _reset_motors(self):
         """Réinitialise les moteurs (vitesse à 0)"""
         for motor in self.state.motors:

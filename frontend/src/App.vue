@@ -2,6 +2,8 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import MotorSlider from './components/MotorSlider.vue'
 import MotorSummaryCard from './components/MotorSummaryCard.vue'
+import Monitoring from './components/Monitoring.vue'
+import Settings from './components/Settings.vue'
 
 const isOn = ref(false)
 const hasWarning = ref(false)
@@ -14,6 +16,7 @@ const backendAvailable = ref(true)
 const emergencyStopButtonPressed = ref(false)
 const emergencyStopActive = ref(false)
 const emergencyStopAcknowledged = ref(false)
+const activeMenu = ref('monitoring')
 const motors = ref({
   motors: [
     { id: 1, current_speed: 0, target_speed: 0, tau_s: 1.5 },
@@ -296,10 +299,27 @@ onUnmounted(() => {
         <span class="brand-name">DemoMachine</span>
       </div>
       <nav>
-        <button class="menu-item active" type="button">
+        <button 
+          class="menu-item" 
+          :class="{ active: activeMenu === 'monitoring' }"
+          @click="activeMenu = 'monitoring'"
+          type="button"
+        >
           Monitoring
         </button>
-        <button class="menu-item" type="button" @click="openN8n">
+        <button 
+          class="menu-item" 
+          :class="{ active: activeMenu === 'settings' }"
+          @click="activeMenu = 'settings'"
+          type="button"
+        >
+          Settings
+        </button>
+        <button 
+          class="menu-item"
+          @click="openN8n"
+          type="button"
+        >
           n8n
         </button>
       </nav>
@@ -308,8 +328,8 @@ onUnmounted(() => {
     <main class="dashboard">
       <header class="dashboard-header">
         <div>
-          <h1>Production</h1>
-          <p>Operator Interface - Real-time Machine Status</p>
+          <h1>{{ activeMenu === 'monitoring' ? 'Production' : 'Settings' }}</h1>
+          <p>{{ activeMenu === 'monitoring' ? 'Operator Interface - Real-time Machine Status' : 'Configure machine parameters' }}</p>
         </div>
         <span class="clock-badge">Live</span>
       </header>
@@ -318,43 +338,18 @@ onUnmounted(() => {
         Backend Unavailable
       </div>
 
-      <section class="kpi-grid">
-        <article class="card">
-          <h2>Machine</h2>
-          <div class="status-row">
-            <div class="led-group">
-              <div class="led" :class="{ on: isOn }"></div>
-              <span>Power</span>
-            </div>
-            <div class="led-group">
-              <div class="led" :class="{ warning: hasWarning }"></div>
-              <span>Warning</span>
-            </div>
-            <div class="led-group">
-              <div class="led" :class="{ error: errorActive }"></div>
-              <span>Error</span>
-            </div>
-            <div class="led-group">
-              <div class="led" :class="{ emergency: emergencyStopActive }"></div>
-              <span>E-Stop</span>
-            </div>
-            <div class="led-group">
-              <div class="led" :class="{ error: doorOpen }"></div>
-              <span>Door</span>
-            </div>
-          </div>
-        </article>
-      </section>
-
-      <section class="motors-grid" v-if="motors.motors?.[0] || motors.motors?.[1]">
-        <MotorSummaryCard
-          v-for="motorCard in motorCards"
-          :key="motorCard.id"
-          :title="motorCard.title"
-          :motor="motorCard.motor"
-          :history="speedHistory[motorCard.id]"
-        />
-      </section>
+      <component
+        :is="activeMenu === 'monitoring' ? Monitoring : Settings"
+        :is-on="isOn"
+        :has-warning="hasWarning"
+        :door-open="doorOpen"
+        :error-active="errorActive"
+        :emergency-stop-active="emergencyStopActive"
+        :motors="motors"
+        :motor-cards="motorCards"
+        :speed-history="speedHistory"
+        @tau-changed="fetchState"
+      />
     </main>
 
     <aside class="right-rail">
@@ -545,6 +540,13 @@ nav {
 .menu-item:hover {
   color: var(--text-main);
   border-color: rgba(88, 208, 255, 0.4);
+}
+
+.menu-item.active {
+  background: linear-gradient(145deg, rgba(88, 208, 255, 0.2), rgba(44, 197, 193, 0.15));
+  border-color: rgba(88, 208, 255, 0.5);
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .dashboard {

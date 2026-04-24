@@ -15,6 +15,7 @@ from models import (
     EmergencyStopButtonPayload,
     EmergencyStopAcknowledgePayload,
     ErrorAcknowledgePayload,
+    SetMotorTauPayload,
 )
 
 # Configuration
@@ -146,6 +147,15 @@ def power_off():
 def set_speed_target(payload: SetMotorSpeedPayload):
     """Défini la vitesse cible d'un moteur"""
     plc.set_motor_speed(payload.motor_id, payload.target_speed)
+    state = plc.get_state()
+    notify_webhook()
+    return state
+
+
+@app.post("/motor-tau")
+def set_motor_tau(payload: SetMotorTauPayload):
+    """Modifie la constante de temps (tau) d'un moteur"""
+    plc.set_motor_tau(payload.motor_id, payload.tau_s)
     state = plc.get_state()
     notify_webhook()
     return state
