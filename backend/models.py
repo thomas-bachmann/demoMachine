@@ -78,3 +78,9 @@ class SetMotorTauPayload(BaseModel):
     """Payload pour modifier le tau d'un moteur"""
     motor_id: int = Field(ge=1, le=2, description="ID du moteur (1-2)")
     tau_s: float = Field(ge=0.1, le=10.0, description="Constante de temps en secondes")
+
+
+class LLMChatPayload(BaseModel):
+    """Payload pour la communication avec le LLM via MCP"""
+    message: str = Field(description="Message de l'utilisateur")
+    machine_state: dict = Field(default_factory=dict, description="État courant de la machine")

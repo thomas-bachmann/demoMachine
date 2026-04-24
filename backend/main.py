@@ -17,6 +17,7 @@ from models import (
     EmergencyStopAcknowledgePayload,
     ErrorAcknowledgePayload,
     SetMotorTauPayload,
+    LLMChatPayload,
 )
 
 # Configuration
@@ -277,6 +278,193 @@ def emergency_stop_acknowledge(payload: EmergencyStopAcknowledgePayload):
     state = plc.get_state()
     notify_webhook()
     return state
+
+
+# ========== ENDPOINTS LLM/MCP ==========
+
+def generate_llm_response(message: str, machine_state: dict) -> str:
+    """
+    Génère une réponse du LLM basée sur le message et l'état machine.
+    Utilise une approche par keywords pour identifier les intentions et recommander des actions.
+    
+    Args:
+        message: Message de l'utilisateur
+        machine_state: État courant de la machine
+    
+    Returns:
+        Réponse textuelle du LLM avec guidance
+    """
+    msg_lower = message.lower()
+    
+    # === RECONNAISSANCE D'INTENTIONS ===
+    
+    # Moteurs - vitesse et tau
+    if any(word in msg_lower for word in ["motor", "moteur", "vitesse", "speed", "tau", "accélération"]):
+        motor_guidance = "Pour contrôler les moteurs:\n"
+        motor_guidance += "🎚️ **Réglage de la vitesse**: Utilisez le panneau Monitoring pour ajuster la vitesse des moteurs avec les sliders\n"
+        motor_guidance += "⚙️ **Configuration du Tau**: Allez dans Settings pour modifier la constante de temps (tau) qui contrôle l'accélération/décélération\n"
+        motor_guidance += f"📊 État actuel:\n"
+        
+        if machine_state.get('motors'):
+            for motor in machine_state['motors']:
+                motor_guidance += f"  - Motor {motor['id']}: Vitesse={motor['current_speed']:.1f}%, Tau={motor['tau_s']:.2f}s\n"
+        
+        if not machine_state.get('isOn'):
+            motor_guidance += "\n⚠️ La machine est éteinte. Allumez-la d'abord pour contrôler les moteurs."
+        
+        return motor_guidance
+    
+    # Aide générale et menus
+    if any(word in msg_lower for word in ["aide", "help", "guide", "menu", "comment", "quoi", "que faire"]):
+        return """👋 **Bienvenue au Guide DemoMachine!**
+
+Voici ce que vous pouvez faire:
+
+🔍 **Monitoring** - Visualisez l'état en temps réel:
+   • Vitesse actuelle et cible des moteurs
+   • Historique des vitesses (10 dernières minutes)
+   • État de la machine (puissance, erreurs, e-stop)
+
+⚙️ **Settings** - Configurez la machine:
+   • Ajustez le Tau (constante de temps) de chaque moteur
+   • Valeurs recommandées: 0.1s (rapide) à 10s (lent)
+
+🎚️ **Contrôles** - Interagissez directement:
+   • Allumez/éteignez la machine (bouton toggle)
+   • Réglez les vitesses cibles avec les sliders
+   • Gestion de l'arrêt d'urgence et des erreurs
+
+💬 **Chatbot** (Vous êtes ici!) - Obtenir de l'aide
+   • Posez des questions sur les moteurs, l'état, les menus...
+
+**Besoin d'aide avec un élément spécifique?** Posez votre question!"""
+    
+    # État et diagnostique
+    if any(word in msg_lower for word in ["état", "state", "status", "diagnostic", "santé"]):
+        state_msg = "📊 **État de la Machine**\n"
+        
+        is_on = machine_state.get('isOn', False)
+        state_msg += f"🔌 Alimentation: {'✅ ON' if is_on else '❌ OFF'}\n"
+        
+        has_warning = machine_state.get('hasWarning', False)
+        state_msg += f"⚠️ Alerte: {'🟡 ACTIVE' if has_warning else '✅ Aucune'}\n"
+        
+        door_open = machine_state.get('doorOpen', False)
+        state_msg += f"🚪 Porte: {'❌ OUVERTE' if door_open else '✅ Fermée'}\n"
+        
+        error_active = machine_state.get('errorActive', False)
+        state_msg += f"❌ Erreur: {'🔴 ACTIVE' if error_active else '✅ Aucune'}\n"
+        
+        if machine_state.get('motors'):
+            state_msg += "\n🎚️ **Moteurs**\n"
+            for motor in machine_state['motors']:
+                state_msg += f"  Motor {motor['id']}: {motor['current_speed']:.1f}% → {motor['target_speed']:.1f}% (τ={motor['tau_s']:.2f}s)\n"
+        
+        if not is_on:
+            state_msg += "\n💡 **Suggestion**: La machine est éteinte. Allez au Monitoring pour l'allumer."
+        
+        return state_msg
+    
+    # Arrêt d'urgence
+    if any(word in msg_lower for word in ["emergency", "arrêt", "e-stop", "urgence", "stop"]):
+        return """🛑 **Arrêt d'Urgence - Guide d'Utilisation**
+
+L'arrêt d'urgence est un mécanisme de sécurité avec 2 étapes:
+
+1️⃣ **Activation**:
+   • Appuyez sur le bouton E-STOP (rouge) dans le Monitoring
+   • La machine s'arrête immédiatement
+   • Le bouton se bloque en position enfoncée
+
+2️⃣ **Quittance (Acknowledge)**:
+   • Relâchez le bouton E-STOP
+   • Appuyez sur le bouton "Acknowledge" pour déverrouiller
+   • La machine peut alors redémarrer
+
+⚠️ **Important**: 
+   • Ne pas utiliser pour un arrêt normal - utilisez plutôt le toggle Power
+   • L'E-stop doit être relâché AVANT d'utiliser Acknowledge
+   • Vérifiez la cause de l'urgence avant de réactiver"""
+    
+    # Porte
+    if any(word in msg_lower for word in ["porte", "door", "fermer", "ouvrir"]):
+        door_status = machine_state.get('doorOpen', False)
+        return f"""🚪 **État de la Porte**
+
+État actuel: {'❌ OUVERTE' if door_status else '✅ Fermée'}
+
+La porte contrôle l'état de sécurité de la machine:
+• Porte fermée → Machine peut fonctionner
+• Porte ouverte → Machine s'arrête immédiatement pour sécurité
+
+Pour simuler l'ouverture/fermeture: allez dans **Monitoring** et utilisez le bouton "Simulate Door"."""
+    
+    # Erreur
+    if any(word in msg_lower for word in ["erreur", "error", "erreur", "problème", "problèmes"]):
+        error_active = machine_state.get('errorActive', False)
+        return f"""❌ **Gestion des Erreurs**
+
+État actuel: {'🔴 ERREUR ACTIVE' if error_active else '✅ Pas d\'erreur'}
+
+Les erreurs déclenchent un arrêt de sécurité:
+• La machine s'arrête immédiatement
+• Vous devez appuyer sur "Error Acknowledge" pour reprendre
+
+Pour quittancer une erreur:
+1. Allez au **Monitoring**
+2. Appuyez sur le bouton "Error Acknowledge" (maintenu)
+3. La machine redémarrera après quittance
+
+Les erreurs sont automatiquement simulables via les boutons du Monitoring."""
+    
+    # Allumer/Éteindre
+    if any(word in msg_lower for word in ["allumer", "éteindre", "on", "off", "power", "puissance"]):
+        is_on = machine_state.get('isOn', False)
+        return f"""🔌 **Contrôle de l'Alimentation**
+
+État actuel: {'✅ Machine ON' if is_on else '❌ Machine OFF'}
+
+Pour allumer/éteindre la machine:
+1. Allez au **Monitoring**
+2. Cliquez sur le bouton **"Power On/Off"** (bouton toggle en haut à droite)
+
+**Conditions de démarrage**:
+La machine ne peut démarrer que si:
+✅ E-Stop n'est pas actif
+✅ Pas d'erreur active
+✅ Porte fermée
+
+Si la machine refuse de démarrer, vérifiez ces conditions!"""
+    
+    # Par défaut - suggestion générale
+    return """Désolé, je n'ai pas bien compris votre question.
+
+Essayez de demander:
+• **"Aide"** - Guide complet
+• **"État"** - État actuel de la machine
+• **"Moteurs"** - Contrôle des moteurs
+• **"E-Stop"** - Arrêt d'urgence
+• **"Porte"** - État de la porte
+• **"Erreur"** - Gestion des erreurs
+• **"Power"** - Allumer/éteindre
+
+Ou posez simplement votre question en français! 🤖"""
+
+
+@app.post("/llm-chat")
+def llm_chat(payload: LLMChatPayload):
+    """Endpoint de chat LLM avec accès au contexte machine"""
+    try:
+        response = generate_llm_response(payload.message, payload.machine_state)
+        return {
+            "status": "ok",
+            "response": response
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "response": f"Erreur lors du traitement: {str(e)}"
+        }
 
 
 # ========== ENDPOINTS LOGS ==========

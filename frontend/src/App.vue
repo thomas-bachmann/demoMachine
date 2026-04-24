@@ -4,6 +4,7 @@ import MotorSlider from './components/MotorSlider.vue'
 import MotorSummaryCard from './components/MotorSummaryCard.vue'
 import Monitoring from './components/Monitoring.vue'
 import Settings from './components/Settings.vue'
+import LLMChatDrawer from './components/LLMChatDrawer.vue'
 
 const isOn = ref(false)
 const hasWarning = ref(false)
@@ -444,6 +445,9 @@ onUnmounted(() => {
       </div>
     </aside>
   </div>
+
+  <!-- LLM Chat Drawer - accessible from any page -->
+  <LLMChatDrawer :machine-state="{ isOn, hasWarning, doorOpen, errorActive, motors: motors.motors }" />
 </template>
 
 <style scoped>
