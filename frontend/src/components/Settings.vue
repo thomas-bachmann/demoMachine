@@ -18,9 +18,15 @@ watch(
   (newMotors) => {
     if (newMotors) {
       newMotors.forEach((motor) => {
+        const motorKey = `motor_${motor.id}`
+        const currentValue = tauValues.value[motorKey]
+        
         // Ne pas réinitialiser si on est en train d'éditer ce moteur
         if (editingMotorId.value !== motor.id) {
-          tauValues.value[`motor_${motor.id}`] = motor.tau_s
+          // Ne réinitialiser que si la valeur a changé sur le backend
+          if (currentValue !== motor.tau_s) {
+            tauValues.value[motorKey] = motor.tau_s
+          }
         }
       })
     }
@@ -75,8 +81,10 @@ function onTauBlur() {
     <div class="settings-container">
       <h2>Settings</h2>
       
-      <div v-if="savedMessage" class="saved-message">
-        ✓ {{ savedMessage }}
+      <div v-if="savedMessage" class="saved-message" :class="{ error: savedMessage.includes('Error') }">
+        <span v-if="!savedMessage.includes('Error')" class="icon">✓</span>
+        <span v-else class="icon error-icon">✗</span>
+        {{ savedMessage }}
       </div>
 
       <section class="settings-section">
@@ -171,6 +179,24 @@ h2 {
   border-radius: 8px;
   margin-bottom: 20px;
   font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-message.error {
+  background: rgba(255, 95, 109, 0.15);
+  border: 1px solid rgba(255, 95, 109, 0.5);
+  color: #ffb1b8;
+}
+
+.saved-message .icon {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.saved-message .error-icon {
+  color: #ff5f6d;
 }
 
 .settings-section {
