@@ -461,12 +461,13 @@ onUnmounted(() => {
   --ok: #6dff9a;
   --warn: #ffbe4d;
   --err: #ff5f6d;
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) 320px;
   gap: 12px;
   padding: 12px;
   margin: 0px;
+  overflow: hidden;
   background:
     radial-gradient(circle at 12% 8%, rgba(88, 208, 255, 0.14), transparent 28%),
     radial-gradient(circle at 84% 92%, rgba(61, 108, 255, 0.12), transparent 32%),
@@ -498,6 +499,8 @@ onUnmounted(() => {
   grid-template-rows: auto 1fr;
   gap: 16px;
   animation: slideInLeft 0.5s ease;
+  height: 100%;
+  overflow: hidden;
 }
 
 .brand {
@@ -524,6 +527,7 @@ nav {
   display: grid;
   align-content: start;
   gap: 8px;
+  overflow-y: auto;
 }
 
 .menu-item {
@@ -554,6 +558,9 @@ nav {
   align-content: start;
   gap: 12px;
   animation: fadeInUp 0.6s ease;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .dashboard-header {
@@ -673,6 +680,8 @@ p {
   align-content: start;
   gap: 12px;
   animation: slideInRight 0.5s ease;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .rail-title {

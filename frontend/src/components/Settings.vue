@@ -10,6 +10,7 @@ const emit = defineEmits(['tau-changed'])
 const tauValues = ref({})
 const saving = ref(false)
 const savedMessage = ref(null)
+const editingMotorId = ref(null)
 
 // Initialize tau values from props and update when they change
 watch(
@@ -17,7 +18,10 @@ watch(
   (newMotors) => {
     if (newMotors) {
       newMotors.forEach((motor) => {
-        tauValues.value[`motor_${motor.id}`] = motor.tau_s
+        // Ne pas réinitialiser si on est en train d'éditer ce moteur
+        if (editingMotorId.value !== motor.id) {
+          tauValues.value[`motor_${motor.id}`] = motor.tau_s
+        }
       })
     }
   },
@@ -37,6 +41,7 @@ async function saveTau(motorId, newTau) {
     })
     if (res.ok) {
       savedMessage.value = `Motor ${motorId} tau updated to ${newTau}s`
+      editingMotorId.value = null
       emit('tau-changed', motorId, newTau)
       setTimeout(() => {
         savedMessage.value = null
@@ -52,7 +57,16 @@ async function saveTau(motorId, newTau) {
 }
 
 function onTauInput(motorId, value) {
+  editingMotorId.value = motorId
   tauValues.value[`motor_${motorId}`] = parseFloat(value) || 0
+}
+
+function onTauFocus(motorId) {
+  editingMotorId.value = motorId
+}
+
+function onTauBlur() {
+  editingMotorId.value = null
 }
 </script>
 
@@ -84,6 +98,8 @@ function onTauInput(motorId, value) {
                   type="number"
                   :value="tauValues[`motor_${motor.id}`] || motor.tau_s"
                   @input="onTauInput(motor.id, $event.target.value)"
+                  @focus="onTauFocus(motor.id)"
+                  @blur="onTauBlur"
                   :min="0.1"
                   :max="10"
                   :step="0.1"
