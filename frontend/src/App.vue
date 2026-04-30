@@ -5,6 +5,7 @@ import MotorSummaryCard from './components/MotorSummaryCard.vue'
 import Monitoring from './components/Monitoring.vue'
 import Settings from './components/Settings.vue'
 import AlarmHistory from './components/AlarmHistory.vue'
+import DockerLogs from './components/DockerLogs.vue'
 import LLMChatDrawer from './components/LLMChatDrawer.vue'
 
 const isOn = ref(false)
@@ -326,6 +327,14 @@ onUnmounted(() => {
           Alarms
         </button>
         <button 
+          class="menu-item" 
+          :class="{ active: activeMenu === 'docker' }"
+          @click="activeMenu = 'docker'"
+          type="button"
+        >
+          Docker
+        </button>
+        <button 
           class="menu-item"
           @click="openN8n"
           type="button"
@@ -338,8 +347,8 @@ onUnmounted(() => {
     <main class="dashboard">
       <header class="dashboard-header">
         <div>
-          <h1>{{ activeMenu === 'monitoring' ? 'Production' : activeMenu === 'settings' ? 'Settings' : 'Alarm History' }}</h1>
-          <p>{{ activeMenu === 'monitoring' ? 'Operator Interface - Real-time Machine Status' : activeMenu === 'settings' ? 'Configure machine parameters' : 'Review alarm and error events' }}</p>
+          <h1>{{ activeMenu === 'monitoring' ? 'Production' : activeMenu === 'settings' ? 'Settings' : activeMenu === 'alarms' ? 'Alarm History' : 'Docker Logs' }}</h1>
+          <p>{{ activeMenu === 'monitoring' ? 'Operator Interface - Real-time Machine Status' : activeMenu === 'settings' ? 'Configure machine parameters' : activeMenu === 'alarms' ? 'Review alarm and error events' : 'Monitor container logs' }}</p>
         </div>
         <span class="clock-badge">Live</span>
       </header>
@@ -369,6 +378,10 @@ onUnmounted(() => {
 
       <AlarmHistory
         v-else-if="activeMenu === 'alarms'"
+      />
+
+      <DockerLogs
+        v-else-if="activeMenu === 'docker'"
       />
     </main>
 

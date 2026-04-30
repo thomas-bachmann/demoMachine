@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core import Document
 from rag import get_settings, STORAGE_DIR
 
@@ -41,9 +41,13 @@ def load_documents():
 
 def get_splitter(doc):
     ext = Path(doc.metadata.get("filename", "")).suffix
-    # lang = EXTENSIONS.get(ext)
-    # if lang in ("python", "javascript"):
-    #     return CodeSplitter(language=lang, chunk_lines=40, chunk_lines_overlap=5)
+    if ext == ".py":
+        # Découpage sur les définitions de fonctions/classes
+        return SentenceSplitter(
+            chunk_size=256,
+            chunk_overlap=20,
+            separator="\ndef ",  # coupe avant chaque fonction
+        )
     return SentenceSplitter(chunk_size=512, chunk_overlap=50)
 
 def main():

@@ -190,6 +190,8 @@ class MachineController:
         if acknowledged:
             self.state.error_active = False
             self.state.error_condition = False
+            # Log l'acknowledge
+            get_alarm_history().log_alarm("warning", "Error acknowledged")
         
         return True
 
@@ -233,5 +235,7 @@ class MachineController:
         # La quittance ne peut désactiver l'e-stop que si le bouton est relâché
         if acknowledged and not self.state.emergency_stop_button_pressed:
             self.state.emergency_stop_active = False
+            # Log l'acknowledge
+            get_alarm_history().log_alarm("warning", "Emergency stop acknowledged")
         
         return True
