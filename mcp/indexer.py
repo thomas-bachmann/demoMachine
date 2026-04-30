@@ -41,9 +41,9 @@ def load_documents():
 
 def get_splitter(doc):
     ext = Path(doc.metadata.get("filename", "")).suffix
-    lang = EXTENSIONS.get(ext)
-    if lang in ("python", "javascript"):
-        return CodeSplitter(language=lang, chunk_lines=40, chunk_lines_overlap=5)
+    # lang = EXTENSIONS.get(ext)
+    # if lang in ("python", "javascript"):
+    #     return CodeSplitter(language=lang, chunk_lines=40, chunk_lines_overlap=5)
     return SentenceSplitter(chunk_size=512, chunk_overlap=50)
 
 def main():
