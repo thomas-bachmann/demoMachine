@@ -40,6 +40,9 @@ services:
       - BACKEND_URL=http://backend:8000
     depends_on:
       - backend
+    volumes:
+      - index_storage:/index_storage
+      - .:/app_source:ro
     networks:
       - machine-net
     restart: unless-stopped
@@ -71,6 +74,7 @@ services:
 
 volumes:
   n8n_data:
+  index_storage:
 
 networks:
   machine-net:

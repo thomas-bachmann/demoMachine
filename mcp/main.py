@@ -7,6 +7,7 @@ from utils import (
     normalize_motor_id,
     BACKEND_URL
 )
+from rag import get_query_engine
 import httpx
 
 mcp = FastMCP(
@@ -187,6 +188,18 @@ async def get_alarms() -> str:
     
     except Exception as e:
         return f"Error: {str(e)}"
+    
+    
+@mcp.tool()
+async def query_codebase(question: str) -> str:
+    """
+    Répond à des questions sur le code source de demoMachine.
+    Utile pour comprendre le fonctionnement, trouver où est défini un paramètre,
+    ou expliquer la logique d'une fonctionnalité.
+    """
+    engine = get_query_engine()
+    response = engine.query(question)
+    return str(response)
 
 
 if __name__ == "__main__":

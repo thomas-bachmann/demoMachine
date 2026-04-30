@@ -52,6 +52,9 @@ n8n-up:
 	$(COMPOSE) rm -sf n8n || true
 	$(COMPOSE) up -d n8n
 
+index:
+	$(COMPOSE) exec mcp python indexer.py
+
 
 
 # Déploie la conf Caddy host depuis le template versionné

@@ -1,3 +1,4 @@
+import os
 import json
 from litellm import completion
 from mcp import ClientSession
@@ -5,9 +6,11 @@ from mcp.client.streamable_http import streamablehttp_client
 
 async def generate_llm_response(
     prompt: str,
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str | None = None,
     mcp_server_url: str | None = None
 ) -> str:
+    if model is None:
+        model = os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
     messages = [{"role": "user", "content": prompt}]
 
     if not mcp_server_url:
