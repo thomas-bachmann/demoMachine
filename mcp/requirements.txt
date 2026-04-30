@@ -9,3 +9,4 @@ llama-index-readers-file
 tree-sitter
 tree-sitter-python
 tree-sitter-javascript
+tree-sitter-language-pack
