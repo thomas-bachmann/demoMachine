@@ -288,20 +288,23 @@ def emergency_stop_acknowledge(payload: EmergencyStopAcknowledgePayload):
 async def llm_chat(payload: LLMChatPayload):
     """Endpoint de chat LLM avec accès au contexte machine et aux outils"""
     try:
-        response = await generate_llm_response(
+        result = await generate_llm_response(
             prompt=payload.message,
-            mcp_server_url="https://mcp.t-bachmann.pro/mcp"
+            mcp_server_url="https://mcp.t-bachmann.pro/mcp",
+            history=payload.history
         )
         return {
             "status": "ok",
-            "response": response
+            "response": result["response"],
+            "history": result["history"]
         }
     except Exception as e:
         import traceback
         print(f"Error in llm_chat: {traceback.format_exc()}")
         return {
             "status": "error",
-            "response": f"Erreur lors du traitement: {str(e)}"
+            "response": f"Erreur lors du traitement: {str(e)}",
+            "history": payload.history
         }
 
 
