@@ -191,7 +191,7 @@ class MachineController:
             self.state.error_active = False
             self.state.error_condition = False
             # Log l'acknowledge
-            get_alarm_history().log_alarm("warning", "Error acknowledged")
+            get_alarm_history().log_alarm("acknowledge", "Error acknowledged")
         
         return True
 
@@ -236,6 +236,6 @@ class MachineController:
         if acknowledged and not self.state.emergency_stop_button_pressed:
             self.state.emergency_stop_active = False
             # Log l'acknowledge
-            get_alarm_history().log_alarm("warning", "Emergency stop acknowledged")
+            get_alarm_history().log_alarm("acknowledge", "Emergency stop acknowledged")
         
         return True

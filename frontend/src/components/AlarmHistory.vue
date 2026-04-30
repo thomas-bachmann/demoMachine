@@ -166,6 +166,10 @@ h1 {
   background: rgba(255, 87, 34, 0.08);
 }
 
+.alarm-row.alarm-acknowledge {
+  background: rgba(88, 208, 255, 0.05);
+}
+
 .col-timestamp {
   font-size: 0.85rem;
   color: #9bb4cd;
@@ -196,6 +200,12 @@ h1 {
   background: rgba(255, 87, 34, 0.2);
   color: #ff5722;
   border: 1px solid rgba(255, 87, 34, 0.4);
+}
+
+.badge-acknowledge {
+  background: rgba(88, 208, 255, 0.2);
+  color: #58d0ff;
+  border: 1px solid rgba(88, 208, 255, 0.4);
 }
 
 .col-message {
