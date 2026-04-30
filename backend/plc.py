@@ -5,6 +5,7 @@ Ce module encapsule la vraie logique de la machine.
 """
 import time
 from models import MachineState
+from alarm_history import get_alarm_history
 
 
 class MachineController:
@@ -139,6 +140,13 @@ class MachineController:
 
     def set_warning(self, active: bool):
         """Défini l'état d'alerte (simulation) - peut être toggleé à tout moment"""
+        # Si le statut change, logger l'événement
+        if active != self.state.has_warning:
+            if active:
+                get_alarm_history().log_alarm("warning", "Warning activated")
+            else:
+                get_alarm_history().log_alarm("warning", "Warning deactivated")
+        
         self.state.has_warning = active
 
     def set_door(self, open: bool):
@@ -163,6 +171,8 @@ class MachineController:
             # SÉCURITÉ: arrêt immédiat
             self.state.is_on = False
             self._reset_motors()
+            # Log l'erreur
+            get_alarm_history().log_alarm("error", "Error condition triggered - machine stopped")
         
         return True
 
@@ -204,6 +214,8 @@ class MachineController:
             # SÉCURITÉ: arrêt immédiat
             self.state.is_on = False
             self._reset_motors()
+            # Log l'arrêt d'urgence
+            get_alarm_history().log_alarm("error", "EMERGENCY STOP triggered - machine stopped")
         
         return True
 

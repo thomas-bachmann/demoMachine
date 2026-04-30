@@ -20,6 +20,7 @@ from models import (
     LLMChatPayload,
 )
 from ai import generate_llm_response
+from alarm_history import get_alarm_history
 
 # Configuration
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
@@ -317,3 +318,17 @@ def get_logs(docker: str = Query("", description="Docker container name")):
     Read-only operation
     """
     return get_docker_logs(docker)
+
+
+@app.get("/alarms")
+def get_alarms():
+    """Retourne l'historique des alarmes et erreurs.
+    
+    Read-only operation
+    """
+    alarms = get_alarm_history().get_alarms()
+    return {
+        "status": "ok",
+        "count": len(alarms),
+        "alarms": alarms
+    }

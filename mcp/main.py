@@ -157,5 +157,37 @@ async def get_logs(docker_name: str = "") -> str:
         return f"Error: {str(e)}"
 
 
+@mcp.tool()
+async def get_alarms() -> str:
+    """Returns the alarm and error history from the machine. Read-only operation.
+    
+    Returns:
+        List of all alarms and errors with timestamps.
+    """
+    try:
+        result = await api_get("/alarms")
+        
+        if result.get("status") != "ok":
+            return f"Error: Unable to retrieve alarms"
+        
+        alarms = result.get("alarms", [])
+        count = result.get("count", 0)
+        
+        if count == 0:
+            return "No alarms or errors recorded."
+        
+        alarm_list = f"Alarm history ({count} events):\n"
+        for alarm in alarms:
+            timestamp = alarm.get("timestamp", "unknown")
+            alarm_type = alarm.get("type", "unknown").upper()
+            message = alarm.get("message", "no message")
+            alarm_list += f"  [{timestamp}] [{alarm_type}] {message}\n"
+        
+        return alarm_list
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http", host="0.0.0.0", port=8001)

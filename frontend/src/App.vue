@@ -4,6 +4,7 @@ import MotorSlider from './components/MotorSlider.vue'
 import MotorSummaryCard from './components/MotorSummaryCard.vue'
 import Monitoring from './components/Monitoring.vue'
 import Settings from './components/Settings.vue'
+import AlarmHistory from './components/AlarmHistory.vue'
 import LLMChatDrawer from './components/LLMChatDrawer.vue'
 
 const isOn = ref(false)
@@ -317,6 +318,14 @@ onUnmounted(() => {
           Settings
         </button>
         <button 
+          class="menu-item" 
+          :class="{ active: activeMenu === 'alarms' }"
+          @click="activeMenu = 'alarms'"
+          type="button"
+        >
+          Alarms
+        </button>
+        <button 
           class="menu-item"
           @click="openN8n"
           type="button"
@@ -329,8 +338,8 @@ onUnmounted(() => {
     <main class="dashboard">
       <header class="dashboard-header">
         <div>
-          <h1>{{ activeMenu === 'monitoring' ? 'Production' : 'Settings' }}</h1>
-          <p>{{ activeMenu === 'monitoring' ? 'Operator Interface - Real-time Machine Status' : 'Configure machine parameters' }}</p>
+          <h1>{{ activeMenu === 'monitoring' ? 'Production' : activeMenu === 'settings' ? 'Settings' : 'Alarm History' }}</h1>
+          <p>{{ activeMenu === 'monitoring' ? 'Operator Interface - Real-time Machine Status' : activeMenu === 'settings' ? 'Configure machine parameters' : 'Review alarm and error events' }}</p>
         </div>
         <span class="clock-badge">Live</span>
       </header>
@@ -339,8 +348,8 @@ onUnmounted(() => {
         Backend Unavailable
       </div>
 
-      <component
-        :is="activeMenu === 'monitoring' ? Monitoring : Settings"
+      <Monitoring
+        v-if="activeMenu === 'monitoring'"
         :is-on="isOn"
         :has-warning="hasWarning"
         :door-open="doorOpen"
@@ -350,6 +359,16 @@ onUnmounted(() => {
         :motor-cards="motorCards"
         :speed-history="speedHistory"
         @tau-changed="fetchState"
+      />
+
+      <Settings
+        v-else-if="activeMenu === 'settings'"
+        :motors="motors"
+        @tau-changed="fetchState"
+      />
+
+      <AlarmHistory
+        v-else-if="activeMenu === 'alarms'"
       />
     </main>
 
