@@ -294,7 +294,7 @@ async def llm_chat(payload: LLMChatPayload):
         result = await generate_llm_response(
             prompt=payload.message,
             model=LLM_MODEL,
-            api_base=LLM_API_BASE,
+            api_base_url=LLM_API_BASE,
             mcp_server_url=MCP_SERVER_URL,
             history=payload.history
         )

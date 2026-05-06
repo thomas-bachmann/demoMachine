@@ -20,7 +20,7 @@ def _filter_history_for_client(messages: list[dict]) -> list[dict]:
 async def generate_llm_response(
     prompt: str,
     model: str | None = None,
-    api_base: str | None = None,
+    api_base_url: str | None = None,
     mcp_server_url: str | None = None,
     history: list[dict] | None = None
 ) -> dict:
@@ -29,7 +29,7 @@ async def generate_llm_response(
     messages = (history or []) + [{"role": "user", "content": prompt}]
 
     if not mcp_server_url:
-        response = completion(model=model, messages=messages, api_base=api_base)
+        response = completion(model=model, messages=messages, api_base=api_base_url)
         assistant_message = response.choices[0].message.content
         messages.append({"role": "assistant", "content": assistant_message})
         filtered_history = _filter_history_for_client(messages)
@@ -53,7 +53,7 @@ async def generate_llm_response(
             ]
 
             while True:
-                response = completion(model=model, messages=messages, tools=tools, api_base=api_base)
+                response = completion(model=model, messages=messages, tools=tools, api_base=api_base_url)
                 choice = response.choices[0]
 
                 if choice.finish_reason == "stop":
