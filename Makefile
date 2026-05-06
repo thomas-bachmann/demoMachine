@@ -21,7 +21,7 @@ stack-build:
 up: stack-up n8n-up
 
 # Build + relance (local development)
-build: stack-build n8n-up
+build: stack-build n8n-up ollama-ensure
 
 # Arrête tout
 down:
@@ -107,6 +107,12 @@ ollama-list:
 # Test rapide du modèle
 ollama-test:
 	docker exec machine-ollama ollama run llama3.2:3b "Réponds en une phrase : quel est ton rôle ?"
+
+# Pull le modèle seulement s'il n'est pas déjà présent
+ollama-ensure:
+	@docker exec machine-ollama ollama list | grep -q "llama3.2:3b" \
+		&& echo "Ollama: llama3.2:3b déjà présent" \
+		|| (echo "Ollama: pull llama3.2:3b..." && docker exec machine-ollama ollama pull llama3.2:3b)
 
 # Nettoie tout (containers + images), mais conserve le volume n8n_data
 clean:
