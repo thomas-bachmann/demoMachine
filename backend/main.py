@@ -25,6 +25,9 @@ from alarm_history import get_alarm_history
 # Configuration
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 DESTROY_KEY = os.getenv("DESTROY_KEY")  # Secret key to enable destroy - if not set, destroy is always disabled
+LLM_MODEL     = os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
+LLM_API_BASE  = os.getenv("LLM_API_BASE") or None   # None = Anthropic par défaut
+MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "https://mcp.t-bachmann.pro/mcp")
 
 # Initialisation
 app = FastAPI(title="Demo Machine API")
@@ -290,7 +293,9 @@ async def llm_chat(payload: LLMChatPayload):
     try:
         result = await generate_llm_response(
             prompt=payload.message,
-            mcp_server_url="https://mcp.t-bachmann.pro/mcp",
+            model=LLM_MODEL,
+            api_base=LLM_API_BASE,
+            mcp_server_url=MCP_SERVER_URL,
             history=payload.history
         )
         return {

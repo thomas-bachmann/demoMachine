@@ -22,6 +22,9 @@ services:
       - ENV=development
       - WEBHOOK_URL=${N8N_WEBHOOK_URL}
       - DESTROY_KEY=${DESTROY_KEY}
+      - LLM_MODEL=${LLM_MODEL}
+      - LLM_API_BASE=${LLM_API_BASE}
+      - MCP_SERVER_URL=${MCP_SERVER_URL}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -73,9 +76,21 @@ services:
       - machine-net
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama
+    container_name: machine-ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - machine-net
+    restart: unless-stopped
+
 volumes:
   n8n_data:
   index_storage:
+  ollama_data:
 
 networks:
   machine-net:

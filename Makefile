@@ -1,6 +1,6 @@
 ENV_FILE := .env
 
-.PHONY: up down build restart logs frontend backend mcp n8n n8n-up stack-up stack-build caddy-apply check clean caddy-fmt
+.PHONY: up down build restart logs frontend backend mcp n8n n8n-up stack-up stack-build caddy-apply check clean caddy-fmt docker-df prune prune-all ollama-pull ollama-list ollama-test
 
 COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; fi)
 
@@ -76,6 +76,37 @@ caddy-fmt:
 check:
 	@curl -fsS -I http://127.0.0.1:5678 >/dev/null && echo "OK n8n direct (127.0.0.1:5678)"
 	@curl -fsS -I http://$${SERVER_IP}/n8n/ >/dev/null && echo "OK caddy /n8n/"
+
+# Affiche l'utilisation disque Docker
+docker-df:
+	@docker system df
+
+# Supprime images sans tag et conteneurs arrêtés (safe)
+prune:
+	@echo "Nettoyage des images sans tag..."
+	@docker image prune -f
+	@echo "Nettoyage des conteneurs arrêtés..."
+	@docker container prune -f
+	@docker system df
+
+# Supprime tout ce qui n'est pas utilisé, y compris les images non taguées (dangereux)
+prune-all:
+	@echo "⚠️  Suppression de TOUTES les ressources Docker inutilisées..."
+	@read -p "Confirmer? [y/N] " confirm && [ "$$confirm" = "y" ]
+	@docker system prune -f
+	@docker system df
+
+# Pull le modèle llama3.2:3b dans Ollama
+ollama-pull:
+	docker exec machine-ollama ollama pull llama3.2:3b
+
+# Liste les modèles disponibles
+ollama-list:
+	docker exec machine-ollama ollama list
+
+# Test rapide du modèle
+ollama-test:
+	docker exec machine-ollama ollama run llama3.2:3b "Réponds en une phrase : quel est ton rôle ?"
 
 # Nettoie tout (containers + images), mais conserve le volume n8n_data
 clean:
