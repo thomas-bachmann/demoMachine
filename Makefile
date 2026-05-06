@@ -4,6 +4,9 @@ ENV_FILE := .env
 
 COMPOSE := $(shell if command -v docker-compose >/dev/null 2>&1; then echo docker-compose; elif command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; fi)
 
+# Lecture du modèle Ollama depuis le .env (ex: ollama/llama3.2:1b → llama3.2:1b)
+OLLAMA_MODEL := $(shell grep '^LLM_MODEL=' $(ENV_FILE) 2>/dev/null | cut -d'=' -f2 | sed 's|ollama/||')
+
 ifeq ($(strip $(COMPOSE)),)
 $(error Neither 'docker compose' nor 'docker-compose' is available. Please install Docker Compose)
 endif
@@ -96,9 +99,9 @@ prune-all:
 	@docker system prune -f
 	@docker system df
 
-# Pull le modèle llama3.2:3b dans Ollama
+# Pull le modèle défini dans .env
 ollama-pull:
-	docker exec machine-ollama ollama pull llama3.2:3b
+	docker exec machine-ollama ollama pull $(OLLAMA_MODEL)
 
 # Liste les modèles disponibles
 ollama-list:
@@ -106,13 +109,13 @@ ollama-list:
 
 # Test rapide du modèle
 ollama-test:
-	docker exec machine-ollama ollama run llama3.2:3b "Réponds en une phrase : quel est ton rôle ?"
+	docker exec machine-ollama ollama run $(OLLAMA_MODEL) "Réponds en une phrase : quel est ton rôle ?"
 
 # Pull le modèle seulement s'il n'est pas déjà présent
 ollama-ensure:
-	@docker exec machine-ollama ollama list | grep -q "llama3.2:3b" \
-		&& echo "Ollama: llama3.2:3b déjà présent" \
-		|| (echo "Ollama: pull llama3.2:3b..." && docker exec machine-ollama ollama pull llama3.2:3b)
+	@docker exec machine-ollama ollama list | grep -q "$(OLLAMA_MODEL)" \
+		&& echo "Ollama: $(OLLAMA_MODEL) déjà présent" \
+		|| (echo "Ollama: pull $(OLLAMA_MODEL)..." && docker exec machine-ollama ollama pull $(OLLAMA_MODEL))
 
 # Nettoie tout (containers + images), mais conserve le volume n8n_data
 clean:
