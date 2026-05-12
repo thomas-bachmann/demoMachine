@@ -10,12 +10,13 @@ const autoScroll = ref(true)
 
 let pollTimer = null
 const POLL_MS = 2000
+const isSelectFocused = ref(false)
 
 async function fetchContainers() {
   try {
     const response = await fetch('/api/logs')
     if (!response.ok) throw new Error('Failed to fetch containers')
-    
+
     const data = await response.json()
     if (data.containers) {
       containers.value = data.containers
@@ -30,29 +31,30 @@ async function fetchContainers() {
   }
 }
 
-async function fetchLogs() {
+async function fetchLogs(manual = false) {
   if (!selectedContainer.value) return
-  
-  loading.value = true
+
+  if (manual) loading.value = true
   try {
     const response = await fetch(`/api/logs?docker=${selectedContainer.value}`)
     if (!response.ok) throw new Error('Failed to fetch logs')
-    
+
     const data = await response.json()
-    if (data.logs) {
-      logs.value = data.logs
-    } else if (data.error) {
-      error.value = data.error
-      logs.value = ''
+    if (!isSelectFocused.value) {
+      if (data.logs) {
+        logs.value = data.logs
+      } else if (data.error) {
+        error.value = data.error
+        logs.value = ''
+      }
+      error.value = null
     }
-    error.value = null
   } catch (err) {
     console.error('Error fetching logs:', err)
     error.value = err.message
   } finally {
     loading.value = false
-    
-    // Auto-scroll to bottom
+
     if (autoScroll.value) {
       setTimeout(() => {
         const logElement = document.querySelector('.docker-logs-content')
@@ -87,7 +89,7 @@ onMounted(() => {
   }
   pollTimer = setInterval(() => {
     if (selectedContainer.value) {
-      fetchLogs()
+      fetchLogs(false)
     }
   }, POLL_MS)
 })
@@ -113,7 +115,8 @@ onUnmounted(() => {
             id="container-select"
             :value="selectedContainer"
             @change="onContainerChange($event.target.value)"
-            :disabled="loading"
+            @focus="isSelectFocused = true"
+            @blur="isSelectFocused = false"
           >
             <option value="">-- Choose a container --</option>
             <option
@@ -143,7 +146,7 @@ onUnmounted(() => {
             📋 Copy
           </button>
           <button
-            @click="fetchLogs"
+            @click="fetchLogs(true)"
             :disabled="loading || !selectedContainer"
             title="Refresh logs"
           >
@@ -167,8 +170,8 @@ onUnmounted(() => {
 .docker-logs-view {
   display: flex;
   justify-content: center;
-  padding: 16px;
-  min-height: calc(100vh - 100px);
+  height: calc(100vh - 140px);
+  overflow: hidden;
 }
 
 .docker-logs-container {
@@ -176,7 +179,9 @@ onUnmounted(() => {
   max-width: 1200px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  height: 100%;
+  overflow: hidden;
 }
 
 h1 {
@@ -282,12 +287,12 @@ button.active {
 
 .docker-logs-content {
   flex: 1;
+  min-height: 0;
   border-radius: 16px;
   border: 1px solid rgba(134, 176, 214, 0.25);
   background: rgba(0, 0, 0, 0.5);
   padding: 16px;
-  overflow: auto;
-  max-height: 600px;
+  overflow-y: auto;
   font-family: 'Monaco', 'Courier New', monospace;
 }
 
