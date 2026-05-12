@@ -9,6 +9,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --upgrade pip
 
 COPY requirements.txt .
+# Install CPU-only torch first to avoid pulling the full CUDA stack (~8 GB)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Stage 2 : runtime ────────────────────────────────────────
