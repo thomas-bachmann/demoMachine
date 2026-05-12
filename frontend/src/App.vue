@@ -497,7 +497,7 @@ onUnmounted(() => {
   --ok: #6dff9a;
   --warn: #ffbe4d;
   --err: #ff5f6d;
-  height: 100vh;
+  height: 100%;
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) 320px;
   gap: 12px;
