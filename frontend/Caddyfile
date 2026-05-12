@@ -2,6 +2,17 @@
     root * /usr/share/nginx/html
     encode gzip
 
+    @llm path /api/llm-chat
+    handle @llm {
+        uri strip_prefix /api
+        reverse_proxy http://backend:8000 {
+            transport http {
+                response_header_timeout 120s
+                dial_timeout 5s
+            }
+        }
+    }
+
     handle_path /api/* {
         reverse_proxy http://backend:8000 {
             transport http {

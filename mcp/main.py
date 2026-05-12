@@ -197,9 +197,14 @@ async def query_codebase(question: str) -> str:
     Utile pour comprendre le fonctionnement, trouver où est défini un paramètre,
     ou expliquer la logique d'une fonctionnalité.
     """
-    engine = get_query_engine()
-    response = engine.query(question)
-    return str(response)
+    try:
+        engine = get_query_engine()
+        response = engine.query(question)
+        return str(response)
+    except RuntimeError as e:
+        return f"Documentation index unavailable: {e}. Run 'make index' on the server to build it."
+    except Exception as e:
+        return f"Error querying codebase: {e}"
 
 
 if __name__ == "__main__":
