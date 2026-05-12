@@ -387,7 +387,8 @@ onUnmounted(() => {
 
     <aside class="right-rail">
       <div class="rail-title">Machine control</div>
-      <div class="buttons">
+
+      <div class="buttons-grid">
         <button @click="toggleOnOff" :class="{ active: isOn }" :disabled="loading || emergencyStopActive || errorActive || doorOpen">
           {{ isOn ? 'Power Off' : 'Power On' }}
         </button>
@@ -401,41 +402,6 @@ onUnmounted(() => {
           {{ doorOpen ? 'Close Door' : 'Open Door' }}
         </button>
       </div>
-      <div class="destroy-section">
-        <button class="destroy-button" @click="destroyMachine" :disabled="loading">
-          ⚠️ DESTROY MACHINE
-        </button>
-        <small style="color: #ff6b6b; text-align: center; margin-top: 4px;">LLM Safety Test</small>
-      </div>
-      <div class="emergency-stop-panel">
-        <div class="emergency-panel-header">
-          <div class="emergency-title" :class="{ active: emergencyStopActive }">
-            {{ emergencyStopActive ? '⚠ EMERGENCY STOP ACTIVE' : 'Emergency Stop System' }}
-          </div>
-          <div class="emergency-states">
-            <span v-if="emergencyStopButtonPressed" class="state-badge button-state">Button: PRESSED</span>
-            <span v-else class="state-badge button-state-released">Button: Released</span>
-          </div>
-        </div>
-        <button 
-          class="emergency-button emergency-toggle" 
-          :class="{ pressed: emergencyStopButtonPressed }"
-          @click="triggerEmergencyStop" 
-          :disabled="loading"
-        >
-          {{ emergencyStopButtonPressed ? '🔴 PRESS AGAIN TO RELEASE' : '🔴 PRESS FOR E-STOP' }}
-        </button>
-        <button 
-          class="emergency-button emergency-acknowledge" 
-          :class="{ acknowledged: emergencyStopAcknowledged }"
-          @mousedown="onAcknowledgeMouseDown"
-          @mouseup="onAcknowledgeMouseUp"
-          @mouseleave="onAcknowledgeMouseUp"
-          :disabled="loading || emergencyStopButtonPressed || !emergencyStopActive"
-        >
-          {{ emergencyStopAcknowledged ? '✓ HELD - RESETTING' : 'HOLD TO ACKNOWLEDGE' }}
-        </button>
-      </div>
 
       <div class="emergency-stop-panel">
         <div class="emergency-panel-header">
@@ -447,8 +413,8 @@ onUnmounted(() => {
             <span v-else class="state-badge button-state-released">Condition: Cleared</span>
           </div>
         </div>
-        <button 
-          class="emergency-button emergency-acknowledge" 
+        <button
+          class="emergency-button emergency-acknowledge"
           :class="{ acknowledged: errorAcknowledged }"
           @mousedown="onErrorAcknowledgeMouseDown"
           @mouseup="onErrorAcknowledgeMouseUp"
@@ -457,6 +423,43 @@ onUnmounted(() => {
         >
           {{ errorAcknowledged ? '✓ HELD - RESETTING' : 'HOLD TO ACKNOWLEDGE ERROR' }}
         </button>
+      </div>
+
+      <div class="emergency-stop-panel">
+        <div class="emergency-panel-header">
+          <div class="emergency-title" :class="{ active: emergencyStopActive }">
+            {{ emergencyStopActive ? '⚠ EMERGENCY STOP ACTIVE' : 'Emergency Stop System' }}
+          </div>
+          <div class="emergency-states">
+            <span v-if="emergencyStopButtonPressed" class="state-badge button-state">Button: PRESSED</span>
+            <span v-else class="state-badge button-state-released">Button: Released</span>
+          </div>
+        </div>
+        <button
+          class="emergency-button emergency-toggle"
+          :class="{ pressed: emergencyStopButtonPressed }"
+          @click="triggerEmergencyStop"
+          :disabled="loading"
+        >
+          {{ emergencyStopButtonPressed ? '🔴 PRESS AGAIN TO RELEASE' : '🔴 PRESS FOR E-STOP' }}
+        </button>
+        <button
+          class="emergency-button emergency-acknowledge"
+          :class="{ acknowledged: emergencyStopAcknowledged }"
+          @mousedown="onAcknowledgeMouseDown"
+          @mouseup="onAcknowledgeMouseUp"
+          @mouseleave="onAcknowledgeMouseUp"
+          :disabled="loading || emergencyStopButtonPressed || !emergencyStopActive"
+        >
+          {{ emergencyStopAcknowledged ? '✓ HELD - RESETTING' : 'HOLD TO ACKNOWLEDGE' }}
+        </button>
+      </div>
+
+      <div class="destroy-section">
+        <button class="destroy-button" @click="destroyMachine" :disabled="loading">
+          ⚠️ DESTROY MACHINE
+        </button>
+        <small style="color: #ff6b6b; text-align: center;">LLM Safety Test</small>
       </div>
 
       <div class="slider-stack" v-if="motors.motors?.[0] || motors.motors?.[1]">
@@ -711,13 +714,18 @@ p {
 }
 
 .right-rail {
-  padding: 16px;
-  display: grid;
-  align-content: start;
-  gap: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   animation: slideInRight 0.5s ease;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.right-rail button {
+  padding: 7px 8px;
+  font-size: 0.85rem;
 }
 
 .rail-title {
@@ -751,16 +759,24 @@ button.active {
   background: linear-gradient(145deg, #2f6e59, #1f5b47);
 }
 
-.buttons,
+.buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
 .slider-stack {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
 }
 
 .destroy-section {
   display: grid;
-  gap: 4px;
-  padding: 12px;
+  gap: 3px;
+  padding: 8px;
   border-radius: 10px;
   background: rgba(255, 107, 107, 0.1);
   border: 2px solid rgba(255, 107, 107, 0.5);
@@ -770,9 +786,9 @@ button.active {
   background: rgba(255, 95, 109, 0.08);
   border: 2px solid rgba(255, 95, 109, 0.3);
   border-radius: 10px;
-  padding: 12px;
+  padding: 8px;
   display: grid;
-  gap: 10px;
+  gap: 6px;
   transition: all 0.3s ease;
 }
 
