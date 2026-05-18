@@ -301,7 +301,8 @@ async def llm_chat(payload: LLMChatPayload):
         return {
             "status": "ok",
             "response": result["response"],
-            "session_id": result["session_id"]
+            "session_id": result["session_id"],
+            "clarification": result.get("clarification")
         }
     except Exception as e:
         import traceback

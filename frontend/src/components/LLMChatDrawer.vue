@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, reactive } from 'vue'
 
 const props = defineProps({
   machineState: { type: Object, default: () => ({}) }
@@ -11,6 +11,8 @@ const inputMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref(null)
 const sessionId = ref(null)
+// Tracks per-message clarification state: msgId -> { selected: string|null, otherText: string }
+const messageStates = reactive({})
 
 const displayMessages = computed(() => {
   return messages.value.map((msg, idx) => ({
@@ -37,20 +39,44 @@ async function scrollToBottom() {
   }
 }
 
-async function sendMessage() {
-  if (!inputMessage.value.trim() || loading.value) return
+function handleOptionClick(msgId, option) {
+  if (!messageStates[msgId]) {
+    messageStates[msgId] = { selected: null, otherText: '' }
+  }
+  const state = messageStates[msgId]
+  if (state.selected !== null) return
 
-  const userMsg = inputMessage.value.trim()
-  inputMessage.value = ''
-  
+  if (option.id === 'other') {
+    state.selected = 'other'
+  } else {
+    state.selected = option.id
+    sendMessage(option.label)
+  }
+}
+
+function handleOtherSubmit(msgId) {
+  const state = messageStates[msgId]
+  if (!state || loading.value) return
+  const text = state.otherText.trim()
+  if (!text) return
+  sendMessage(text)
+}
+
+async function sendMessage(overrideText = null) {
+  const userMsg = overrideText !== null ? overrideText : inputMessage.value.trim()
+  if (!userMsg || loading.value) return
+
+  if (overrideText === null) inputMessage.value = ''
+
   messages.value.push({
     role: 'user',
     content: userMsg,
+    clarification: null,
     timestamp: new Date().toLocaleTimeString()
   })
 
   await scrollToBottom()
-  
+
   loading.value = true
   try {
     const res = await fetch('/api/llm-chat', {
@@ -68,13 +94,15 @@ async function sendMessage() {
       sessionId.value = data.session_id
       messages.value.push({
         role: 'assistant',
-        content: data.response,
+        content: data.response || '',
+        clarification: data.clarification || null,
         timestamp: new Date().toLocaleTimeString()
       })
     } else {
       messages.value.push({
         role: 'assistant',
         content: '❌ Erreur lors de la communication',
+        clarification: null,
         timestamp: new Date().toLocaleTimeString()
       })
     }
@@ -83,6 +111,7 @@ async function sendMessage() {
     messages.value.push({
       role: 'assistant',
       content: '❌ Erreur de connexion',
+      clarification: null,
       timestamp: new Date().toLocaleTimeString()
     })
   }
@@ -133,7 +162,49 @@ function handleKeydown(e) {
               <span class="message-role">{{ msg.role === 'user' ? '👤 Vous' : '🤖 Assistant' }}</span>
               <span class="message-time">{{ msg.timestamp }}</span>
             </div>
-            <div class="message-content">{{ msg.content }}</div>
+
+            <!-- Carte de clarification -->
+            <template v-if="msg.clarification">
+              <div class="clarification-card">
+                <p class="clarification-question">{{ msg.clarification.question }}</p>
+                <div class="clarification-options">
+                  <button
+                    v-for="opt in msg.clarification.options"
+                    :key="opt.id"
+                    class="clarification-btn"
+                    :class="{
+                      'btn-selected': messageStates[msg.id]?.selected === opt.id,
+                      'btn-disabled': messageStates[msg.id]?.selected !== null && messageStates[msg.id]?.selected !== opt.id
+                    }"
+                    :disabled="messageStates[msg.id]?.selected !== null"
+                    @click="handleOptionClick(msg.id, opt)"
+                  >
+                    {{ opt.label }}
+                  </button>
+                </div>
+                <!-- Champ texte pour "Autre" -->
+                <div v-if="messageStates[msg.id]?.selected === 'other'" class="other-input-area">
+                  <input
+                    v-model="messageStates[msg.id].otherText"
+                    class="other-input"
+                    placeholder="Précisez votre choix..."
+                    :disabled="loading"
+                    @keydown.enter="handleOtherSubmit(msg.id)"
+                    autofocus
+                  />
+                  <button
+                    class="other-submit-btn"
+                    :disabled="!messageStates[msg.id]?.otherText?.trim() || loading"
+                    @click="handleOtherSubmit(msg.id)"
+                  >
+                    ↵
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- Contenu texte normal -->
+            <div v-else-if="msg.content" class="message-content">{{ msg.content }}</div>
           </div>
 
           <div v-if="loading" class="message message-assistant">
@@ -152,7 +223,7 @@ function handleKeydown(e) {
             @keydown="handleKeydown"
             rows="2"
           ></textarea>
-          <button class="send-button" @click="sendMessage" :disabled="!inputMessage.trim() || loading">
+          <button class="send-button" @click="sendMessage()" :disabled="!inputMessage.trim() || loading">
             {{ loading ? '⏳' : '📤' }}
           </button>
         </div>
@@ -336,6 +407,108 @@ function handleKeydown(e) {
   background: rgba(88, 208, 255, 0.1);
   color: #dceeff;
   border: 1px solid rgba(88, 208, 255, 0.2);
+}
+
+/* Clarification card */
+.clarification-card {
+  max-width: 90%;
+  background: rgba(88, 208, 255, 0.07);
+  border: 1px solid rgba(88, 208, 255, 0.25);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.clarification-question {
+  margin: 0 0 10px;
+  color: #dceeff;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.clarification-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clarification-btn {
+  padding: 7px 12px;
+  background: rgba(88, 208, 255, 0.1);
+  border: 1px solid rgba(88, 208, 255, 0.3);
+  border-radius: 6px;
+  color: #dceeff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.clarification-btn:hover:not(:disabled) {
+  background: rgba(88, 208, 255, 0.2);
+  border-color: rgba(88, 208, 255, 0.5);
+}
+
+.clarification-btn.btn-selected {
+  background: linear-gradient(135deg, rgba(88, 208, 255, 0.25), rgba(43, 197, 193, 0.25));
+  border-color: #58d0ff;
+  font-weight: 600;
+}
+
+.clarification-btn.btn-disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.clarification-btn:disabled {
+  cursor: not-allowed;
+}
+
+.other-input-area {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.other-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(88, 208, 255, 0.3);
+  border-radius: 5px;
+  color: #dceeff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+}
+
+.other-input:focus {
+  outline: none;
+  border-color: #58d0ff;
+}
+
+.other-input:disabled {
+  opacity: 0.5;
+}
+
+.other-submit-btn {
+  padding: 6px 10px;
+  background: linear-gradient(135deg, #58d0ff, #2bc5c1);
+  border: none;
+  border-radius: 5px;
+  color: #0a1218;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.other-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.other-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .spinner {
