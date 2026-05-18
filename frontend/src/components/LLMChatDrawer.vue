@@ -10,6 +10,7 @@ const messages = ref([])
 const inputMessage = ref('')
 const loading = ref(false)
 const messagesContainer = ref(null)
+const sessionId = ref(null)
 
 const displayMessages = computed(() => {
   return messages.value.map((msg, idx) => ({
@@ -57,12 +58,14 @@ async function sendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: userMsg,
-        machine_state: props.machineState
+        machine_state: props.machineState,
+        session_id: sessionId.value
       })
     })
 
     if (res.ok) {
       const data = await res.json()
+      sessionId.value = data.session_id
       messages.value.push({
         role: 'assistant',
         content: data.response,

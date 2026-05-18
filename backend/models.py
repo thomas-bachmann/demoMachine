@@ -84,4 +84,4 @@ class LLMChatPayload(BaseModel):
     """Payload pour la communication avec le LLM via MCP"""
     message: str = Field(description="Message de l'utilisateur")
     machine_state: dict = Field(default_factory=dict, description="État courant de la machine")
-    history: list[dict] = Field(default_factory=list, description="Historique de conversation")
+    session_id: str | None = Field(default=None, description="ID de session (géré côté backend)")

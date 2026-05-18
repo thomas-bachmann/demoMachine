@@ -293,15 +293,15 @@ async def llm_chat(payload: LLMChatPayload):
     try:
         result = await generate_llm_response(
             prompt=payload.message,
+            session_id=payload.session_id,
             model=LLM_MODEL,
             api_base_url=LLM_API_BASE,
             mcp_server_url=MCP_SERVER_URL,
-            history=payload.history
         )
         return {
             "status": "ok",
             "response": result["response"],
-            "history": result["history"]
+            "session_id": result["session_id"]
         }
     except Exception as e:
         import traceback

@@ -1,48 +1,41 @@
 import os
 import json
+import uuid
 from litellm import completion
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
+# In-memory conversation store: session_id -> messages
+_conversation_store: dict[str, list] = {}
+MAX_STORED_MESSAGES = 40
 
-def _filter_history_for_client(messages: list) -> list[dict]:
-    """
-    Filtre l'historique pour le client :
-    - Supprime les messages de type 'tool' et les messages assistant sans contenu textuel
-    - Garde seulement les 5 derniers messages user/assistant avec contenu
-    """
-    filtered = []
-    for msg in messages:
-        if isinstance(msg, dict):
-            role = msg.get("role")
-            content = msg.get("content")
-        else:
-            role = getattr(msg, "role", None)
-            content = getattr(msg, "content", None)
 
-        if role in ("user", "assistant") and content:
-            filtered.append({"role": role, "content": content})
-
-    return filtered[-5:]
+def _save_session(session_id: str, messages: list) -> None:
+    _conversation_store[session_id] = messages[-MAX_STORED_MESSAGES:]
 
 
 async def generate_llm_response(
     prompt: str,
+    session_id: str | None = None,
     model: str | None = None,
     api_base_url: str | None = None,
     mcp_server_url: str | None = None,
-    history: list[dict] | None = None
 ) -> dict:
     if model is None:
         model = os.getenv("LLM_MODEL", "claude-sonnet-4-5-20250929")
-    messages = (history or []) + [{"role": "user", "content": prompt}]
+
+    if session_id is None:
+        session_id = str(uuid.uuid4())
+
+    history = _conversation_store.get(session_id, [])
+    messages = history + [{"role": "user", "content": prompt}]
 
     if not mcp_server_url:
         response = completion(model=model, messages=messages, api_base=api_base_url)
         assistant_message = response.choices[0].message.content
         messages.append({"role": "assistant", "content": assistant_message})
-        filtered_history = _filter_history_for_client(messages)
-        return {"response": assistant_message, "history": filtered_history}
+        _save_session(session_id, messages)
+        return {"response": assistant_message, "session_id": session_id}
 
     async with streamablehttp_client(mcp_server_url) as (read, write, _):
         async with ClientSession(read, write) as session:
@@ -68,8 +61,8 @@ async def generate_llm_response(
                 if choice.finish_reason == "stop":
                     response_content = choice.message.content
                     messages.append({"role": "assistant", "content": response_content})
-                    filtered_history = _filter_history_for_client(messages)
-                    return {"response": response_content, "history": filtered_history}
+                    _save_session(session_id, messages)
+                    return {"response": response_content, "session_id": session_id}
 
                 if choice.finish_reason == "tool_calls":
                     messages.append(choice.message)
