@@ -5,15 +5,24 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
 
-def _filter_history_for_client(messages: list[dict]) -> list[dict]:
+def _filter_history_for_client(messages: list) -> list[dict]:
     """
     Filtre l'historique pour le client :
-    - Supprime les messages de type 'tool' (contenu du RAG)
-    - Garde seulement les 5 derniers messages user/assistant
+    - Supprime les messages de type 'tool' et les messages assistant sans contenu textuel
+    - Garde seulement les 5 derniers messages user/assistant avec contenu
     """
-    # Filtrer pour ne garder que user et assistant
-    filtered = [msg for msg in messages if msg.get("role") in ("user", "assistant")]
-    # Garder les 5 derniers
+    filtered = []
+    for msg in messages:
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            content = msg.get("content")
+        else:
+            role = getattr(msg, "role", None)
+            content = getattr(msg, "content", None)
+
+        if role in ("user", "assistant") and content:
+            filtered.append({"role": role, "content": content})
+
     return filtered[-5:]
 
 
