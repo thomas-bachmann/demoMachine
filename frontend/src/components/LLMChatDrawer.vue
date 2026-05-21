@@ -39,11 +39,15 @@ async function scrollToBottom() {
   }
 }
 
-function handleOptionClick(msgId, option) {
+function getMessageState(msgId) {
   if (!messageStates[msgId]) {
     messageStates[msgId] = { selected: null, otherText: '' }
   }
-  const state = messageStates[msgId]
+  return messageStates[msgId]
+}
+
+function handleOptionClick(msgId, option) {
+  const state = getMessageState(msgId)
   if (state.selected !== null) return
 
   if (option.id === 'other') {
@@ -55,7 +59,7 @@ function handleOptionClick(msgId, option) {
 }
 
 function handleOtherSubmit(msgId) {
-  const state = messageStates[msgId]
+  const state = getMessageState(msgId)
   if (!state || loading.value) return
   const text = state.otherText.trim()
   if (!text) return
@@ -173,19 +177,19 @@ function handleKeydown(e) {
                     :key="opt.id"
                     class="clarification-btn"
                     :class="{
-                      'btn-selected': messageStates[msg.id]?.selected === opt.id,
-                      'btn-disabled': messageStates[msg.id]?.selected !== null && messageStates[msg.id]?.selected !== opt.id
+                      'btn-selected': getMessageState(msg.id).selected === opt.id,
+                      'btn-disabled': getMessageState(msg.id).selected !== null && getMessageState(msg.id).selected !== opt.id
                     }"
-                    :disabled="messageStates[msg.id]?.selected !== null"
+                    :disabled="getMessageState(msg.id).selected !== null"
                     @click="handleOptionClick(msg.id, opt)"
                   >
                     {{ opt.label }}
                   </button>
                 </div>
                 <!-- Champ texte pour "Autre" -->
-                <div v-if="messageStates[msg.id]?.selected === 'other'" class="other-input-area">
+                <div v-if="getMessageState(msg.id).selected === 'other'" class="other-input-area">
                   <input
-                    v-model="messageStates[msg.id].otherText"
+                    v-model="getMessageState(msg.id).otherText"
                     class="other-input"
                     placeholder="Précisez votre choix..."
                     :disabled="loading"
@@ -194,7 +198,7 @@ function handleKeydown(e) {
                   />
                   <button
                     class="other-submit-btn"
-                    :disabled="!messageStates[msg.id]?.otherText?.trim() || loading"
+                    :disabled="!getMessageState(msg.id)?.otherText?.trim() || loading"
                     @click="handleOtherSubmit(msg.id)"
                   >
                     ↵

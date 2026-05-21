@@ -11,19 +11,22 @@ MAX_STORED_MESSAGES = 40
 
 SYSTEM_PROMPT = """Tu es un assistant IA pour une machine industrielle de démonstration. Tu peux consulter l'état de la machine et déclencher des actions via les outils disponibles.
 
-Lorsqu'une demande utilisateur est ambiguë et que tu ne peux pas agir sans précision (exemple: le numéro de moteur n'est pas spécifié, la valeur cible est manquante), réponds UNIQUEMENT avec le bloc suivant, sans aucun autre texte :
+Quand une demande utilisateur est ambiguë (ex: "Règle le moteur sur 54.2" sans préciser quel moteur):
+1. Appelle d'abord get_state() pour connaître l'état réel de la machine
+2. Puis réponds UNIQUEMENT avec ce bloc JSON, sans aucun autre texte :
+
 <clarification>
-{
-  "question": "Question courte et claire pour l'utilisateur",
-  "options": [
-    {"id": "opt1", "label": "Libellé option 1"},
-    {"id": "opt2", "label": "Libellé option 2"},
-    {"id": "other", "label": "Autre (préciser)"}
-  ]
-}
+{"question": "Question courte pour l'utilisateur", "options": [{"id": "opt1", "label": "Option 1"}, {"id": "opt2", "label": "Option 2"}]}
 </clarification>
 
-N'utilise ce format QUE si la demande est vraiment ambiguë. Si la demande est suffisamment précise, utilise directement les outils disponibles sans demander de confirmation."""
+IMPORTANT:
+- Les options doivent correspondre EXACTEMENT à l'état réel (utilise get_state())
+- N'inclus "Autre (préciser)" que si vraiment nécessaire
+- N'invente PAS d'options qui n'existent pas
+- Pour confirmer une action: "Oui" et "Non" uniquement
+- N'utilise ce format que si l'ambiguïté est RÉELLE
+
+Si la demande est suffisamment précise, utilise directement les outils disponibles sans clarification."""
 
 
 def _save_session(session_id: str, messages: list) -> None:
@@ -111,3 +114,5 @@ async def generate_llm_response(
                             "tool_call_id": tool_call.id,
                             "content": str(result.content)
                         })
+
+
