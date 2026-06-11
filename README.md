@@ -1,92 +1,207 @@
 # demoMachine
 
-## But
-Démonstrateur de communication entre un simulateur Web de machine et un LLM via MCP.
+## 📋 Description
 
-## Architecture
+Démonstrateur d'une machine industrielle virtuelle avec interface web et intégration LLM via MCP (Model Context Protocol). Le projet permettre aux LLMs de contrôler et d'interagir avec une machine simulée et de consulter son état en temps réel.
+
+## 🏗️ Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Frontend      │────▶│    Backend      │◀───│      MCP        │
-│   (Vue.js)      │     │   (FastAPI)     │     │   (Python)      │
-│   :3000         │     │    :8000        │     │    :8001        │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                        ▲
-                                                        │
-                                                ┌───────┴───────┐
-                                                │ Claude Desktop│
-                                                └───────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        Frontend (Vue.js)                        │
+│                 :3000 (localhost/production)                    │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ REST API
+┌────────────────────▼────────────────────────────────────────────┐
+│                  Backend (FastAPI + Docker)                     │
+│                    :8000 (localhost)                            │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ BUS (main.py) → PLC (plc.py) → MachineState (models.py) │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Contrôle machines (PowerOn/Off, Motors, E-Stop, etc.)  │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ Webhook
+┌────────────────────▼────────────────────────────────────────────┐
+│                     n8n (Automation)                            │
+│                  :5678 (localhost)                              │
+└─────────────────────────────────────────────────────────────────┘
+
+                        ┌──────────────────┐
+                        │  MCP Server      │
+                        │  :8001           │
+                        │  ┌────────────┐  │
+                        │  │ RAG Indexer│  │
+                        │  │ Codebase   │  │
+                        │  │ Context    │  │
+                        │  └────────────┘  │
+                        └────────┬─────────┘
+                                 │
+                        ┌────────▼────────┐
+                        │ Claude Desktop  │
+                        │ Claude Web      │
+                        └─────────────────┘
 ```
 
-## Prérequis
+## 🎯 Objectifs
+
+- **Simulateur machine** : Interface web pour contrôler une machine virtuelle
+- **Intégration LLM** : Permet aux LLMs d'accéder à l'état de la machine et d'exécuter des commandes
+- **RAG (Retrieval Augmented Generation)** : Indexation du codebase pour fournir du contexte aux LLMs
+- **Automatisation** : Intégration n8n pour créer des workflows automatisés
+- **Architecture modulaire** : Séparation claire Frontend/Backend/MCP
+
+## 📦 Services
+
+| Service      | Port  | Description                                    |
+|--------------|-------|------------------------------------------------|
+| **Frontend** | 3000  | Interface Vue.js pour contrôler la machine    |
+| **Backend**  | 8000  | API FastAPI - Logique métier et PLC           |
+| **MCP**      | 8001  | Serveur MCP - Outils pour Claude             |
+| **n8n**      | 5678  | Plateforme d'automatisation                   |
+| **Ollama**   | 11434 | LLM local (optionnel)                         |
+
+## 🚀 Démarrage rapide
+
+### Prérequis
 - Docker & Docker Compose
-- (Optionnel) Claude Desktop pour utiliser le MCP localement
+- Fichier `.env` configuré (voir [Configuration](#configuration))
 
-## Démarrage rapide
+### Installation
 
 ```bash
+# Cloner et entrer dans le répertoire
+cd demoMachine
+
+# Créer le fichier .env
+cp .env.example .env  # À adapter selon votre configuration
+
 # Lancer tous les services
 make up
 
-# Ou avec rebuild
+# Ou avec rebuild (développement)
 make build
-
-# Arrêter
-make down
 
 # Voir les logs
 make logs
+
+# Arrêter tout
+make down
 ```
 
-## Accès local
-- **Frontend** : http://localhost:3000
-- **Backend API** : http://localhost:8000
-- **Swagger** : http://localhost:8000/docs
-- **MCP** : http://localhost:8001/sse
+## 🔧 Commandes Makefile
 
-**Note** : En développement, tous les services sont accessibles sur localhost. En production sur serveur, ils sont accessibles via le reverse proxy Caddy uniquement via le port 80 (HTTP).
+```bash
+make up              # Lancer tous les services
+make build           # Rebuild + relancer (développement)
+make down            # Arrêter tous les services
+make restart         # Redémarrer tous les services
+make logs            # Logs en temps réel
+make clean           # Nettoyer les conteneurs et volumes
+make prune           # Nettoyer les images inutilisées
+make prune-all       # Nettoyer complètement Docker
 
+# Services spécifiques
+make frontend        # Rebuild et lancer Frontend uniquement
+make backend         # Rebuild et lancer Backend uniquement
+make mcp             # Rebuild et lancer MCP uniquement
 
-## API Backend
+# Ollama (LLM local)
+make ollama-pull     # Télécharger le modèle configuré
+make ollama-list     # Lister les modèles disponibles
+make ollama-test     # Tester Ollama
+```
+
+## 🌐 Accès local
+
+```
+Frontend:          http://localhost:3000
+Backend API:       http://localhost:8000
+Swagger API Docs:  http://localhost:8000/docs
+MCP Server:        http://localhost:8001/sse
+n8n Interface:     http://localhost:5678
+```
+
+## ⚙️ Configuration
+
+### Fichier `.env`
+
+Créer un fichier `.env` à la racine avec :
+
+```bash
+# LLM Configuration
+LLM_MODEL=claude-sonnet-4-5-20250929
+LLM_API_BASE=                    # Laisser vide pour Anthropic
+ANTHROPIC_API_KEY=your_api_key
+
+# n8n Configuration
+N8N_BASIC_AUTH_PW=your_password
+N8N_WEBHOOK_URL=https://n8n.your-domain/n8n/
+
+# Backend Configuration
+DESTROY_KEY=your_secret_key      # Clé pour sécuriser l'endpoint /destroy
+
+# Production (Caddy reverse proxy)
+DOMAIN=your-domain.com           # ex: demo.example.com
+```
+
+## 📡 API Backend
 
 ### Endpoints Info
-| Méthode | Endpoint   | Description                          |
-|---------|------------|--------------------------------------|
-| GET     | /          | Health check                         |
-| GET     | /state     | État complet de la machine           |
-| GET     | /logs      | Logs des conteneurs Docker           |
+
+| Méthode | Endpoint | Description              |
+|---------|----------|--------------------------|
+| GET     | /        | Health check             |
+| GET     | /state   | État complet de la machine |
+| GET     | /logs    | Logs des conteneurs Docker |
 
 ### Endpoints Puissance
-| Méthode | Endpoint   | Description                          |
-|---------|------------|--------------------------------------|
-| POST    | /toggle    | Allumer/éteindre la machine          |
-| POST    | /power-on  | Allumer la machine                   |
-| POST    | /power-off | Éteindre la machine                  |
+
+| Méthode | Endpoint    | Description           |
+|---------|-------------|-----------------------|
+| POST    | /toggle     | Allumer/éteindre      |
+| POST    | /power-on   | Allumer la machine    |
+| POST    | /power-off  | Éteindre la machine   |
 
 ### Endpoints Moteurs
-| Méthode | Endpoint      | Description                          |
-|---------|---------------|--------------------------------------|
-| POST    | /speed-target | Définir la vitesse cible d'un moteur |
+
+| Méthode | Endpoint      | Description                  |
+|---------|---------------|------------------------------|
+| POST    | /speed-target | Définir vitesse d'un moteur |
 
 ### Endpoints Diagnostic
-| Méthode | Endpoint   | Description                          |
-|---------|------------|--------------------------------------|
-| POST    | /warning   | Toggle warning (simulation)          |
-| POST    | /door      | Toggle état porte (ouvert/fermé)    |
-| POST    | /error     | Toggle condition d'erreur            |
-| POST    | /destroy   | Détruire la machine (sécurisé par clé) |
+
+| Méthode | Endpoint   | Description                  |
+|---------|------------|------------------------------|
+| POST    | /warning   | Toggle warning (simulation) |
+| POST    | /door      | Toggle porte (ouvert/fermé) |
+| POST    | /error     | Toggle erreur                |
+| POST    | /destroy   | Détruire la machine (sécurisé) |
 
 ### Endpoints Arrêt d'Urgence
-| Méthode | Endpoint                    | Description                          |
-|---------|----------------------------|--------------------------------------|
-| POST    | /error-acknowledge         | Acquitter l'erreur                   |
-| POST    | /emergency-stop            | Contrôler le bouton e-stop           |
-| POST    | /emergency-stop-acknowledge| Acquitter l'e-stop                   |
 
-## Configuration Claude Desktop (Optionnel)
+| Méthode | Endpoint                     | Description              |
+|---------|------------------------------|--------------------------|
+| POST    | /error-acknowledge           | Acquitter l'erreur       |
+| POST    | /emergency-stop              | Contrôler l'e-stop       |
+| POST    | /emergency-stop-acknowledge  | Acquitter l'e-stop       |
 
-### Développement local
-Ajouter dans `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json` :
+### Endpoints LLM
+
+| Méthode | Endpoint   | Description                      |
+|---------|------------|----------------------------------|
+| POST    | /llm-chat  | Chat avec le LLM (via MCP)      |
+
+## 🤖 Configuration Claude Desktop (Optionnel)
+
+Pour utiliser le MCP localement avec Claude Desktop :
+
+**Windows**: `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+**Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -97,6 +212,98 @@ Ajouter dans `%AppData%\Local\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\C
   }
 }
 ```
+
+Une fois configuré, Claude Desktop aura accès aux outils MCP pour contrôler et interroger la machine.
+
+## 📁 Structure du projet
+
+```
+demoMachine/
+├── backend/              # API FastAPI + PLC
+│   ├── main.py          # Endpoints REST
+│   ├── plc.py           # Logique machine (Safety Critical)
+│   ├── models.py        # Modèles Pydantic
+│   ├── ai.py            # Intégration LLM
+│   ├── alarm_history.py # Historique des alarmes
+│   ├── ARCHITECTURE.md  # Documentation architecture
+│   └── requirements.txt
+├── frontend/            # Interface Vue.js
+│   ├── src/
+│   │   ├── components/  # Composants Vue
+│   │   ├── router/      # Routeur Vue
+│   │   └── stores/      # Pinia stores
+│   ├── vite.config.js
+│   └── package.json
+├── mcp/                 # Serveur MCP
+│   ├── main.py         # Point d'entrée MCP
+│   ├── indexer.py      # Indexation du codebase
+│   ├── rag.py          # Retrieval Augmented Generation
+│   ├── utils.py        # Utilitaires
+│   └── requirements.txt
+├── caddy_config/        # Configuration reverse proxy
+│   └── Caddyfile.template
+├── n8n_data/           # Données n8n
+├── docker-compose.yml  # Configuration des services
+├── Makefile            # Automatisation
+└── README.md           # Ce fichier
+```
+
+## 🔐 Sécurité
+
+- **E-Stop** : Arrêt d'urgence prioritaire sur tous les autres commandes
+- **Destroy Key** : Endpoint `/destroy` protégé par une clé secrète
+- **CORS** : Tous les domaines autorisés en développement (adapter en production)
+- **État machine** : Validation stricte des transitions d'état dans le PLC
+
+## 🐛 Troubleshooting
+
+### Les services ne démarrent pas
+```bash
+# Vérifier les logs
+make logs
+
+# Nettoyer et redémarrer
+make down
+docker system prune -f
+make build
+```
+
+### Port déjà utilisé
+```bash
+# Trouver le processus utilisant le port
+lsof -i :3000  # Frontend
+lsof -i :8000  # Backend
+lsof -i :8001  # MCP
+
+# Ou dans docker-compose.yml, modifier les ports
+```
+
+### Modèle LLM non disponible
+```bash
+# Si en local avec Ollama
+make ollama-pull
+
+# Ou utiliser Anthropic (Claude) via API_KEY
+```
+
+## 📚 Documentation complémentaire
+
+- [Architecture Backend](backend/ARCHITECTURE.md) - Détails du modèle PLC
+- [Makefile](Makefile) - Toutes les commandes disponibles
+- [docker-compose.yml](docker-compose.yml) - Configuration des services
+
+## 🚢 Déploiement Production
+
+En production, les services sont exposés via Caddy (reverse proxy) sur le port 80 :
+
+```
+https://your-domain.com  → Frontend (port 3000)
+https://your-domain.com/api  → Backend (port 8000)
+https://your-domain.com/mcp  → MCP (port 8001)
+https://your-domain.com/n8n  → n8n (port 5678)
+```
+
+Voir `caddy_config/Caddyfile.template` pour la configuration exacte.
 
 ### Production (serveur distant)
 ```json
